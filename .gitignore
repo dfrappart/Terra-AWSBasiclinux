@@ -1,0 +1,6 @@
+AWSDFProvider.tf
+Variables.tf
+terraform.tfstate
+terraform.tfstate.backup
+*.tfstate*
+.terraform/
