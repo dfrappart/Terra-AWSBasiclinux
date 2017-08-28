@@ -1,16 +1,18 @@
 /*This template aims is to create the following architecture
-1 RG
-1 vNET
+
+1 VPC
 1 Subnet FrontEnd
 1 Subnet BackEnd
 1 Subnet Bastion
-2 VM FrontEnd Web Apache + Azure LB
+2 VM FrontEnd Web Apache + Elastic Load Balancer
 2 VM Backend DB PostgreSQL 
 1 VM Linux Bastion
 1 public IP on FrontEnd
 1 public IP on Bastion
-1 external AzureLB
-AzureManagedDIsk
+1 external Load Balancer
+NAT Gateway
+Internet Gateway
+EBS Volume
 NSG on FrontEnd Subnet
     Allow HTTP HTTPS from Internet through ALB
     Allow Access to internet egress
@@ -61,7 +63,7 @@ resource "aws_vpc" "vpc-basiclinux" {
 }
 
 ######################################################################
-# Network security, NSG subnet and NACLs
+# Subnet
 ######################################################################
 
 
@@ -145,6 +147,11 @@ resource "aws_subnet" "Subnet-BasicLinuxBastion1" {
     } 
 }
 
+######################################################################
+# NACL
+######################################################################
+
+
 # Creating NACL for frontend
 
 resource "aws_network_acl" "NACL-FrontEnd" {
@@ -201,6 +208,142 @@ resource "aws_network_acl_rule" "NACL-FrontEnd-anyout" {
     from_port = "0"
     to_port = "0"
   
+
+}
+
+######################################################################
+# Security Group
+######################################################################
+
+#Security Group for ELB
+
+resource "aws_security_group" "NSG-ELB" {
+
+    name = "NSG-ELB"
+    description = ""
+    vpc_id = "${aws_vpc.vpc-basiclinux.id}"
+
+    tags {
+        environment = "${var.TagEnvironment}"
+        usage       = "${var.TagUsage}"
+        
+    }
+}
+
+#Rules for SG ELB HTTP In
+
+resource "aws_security_group_rule" "NSG-ELB-HTTPIn" {
+
+    type = "ingress"
+    from_port = 80
+    to_port = 80
+    protocol = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+    security_group_id = "${aws_security_group.NSG-ELB.id}"
+    
+
+}
+
+#Rules for SG Front End * outbound
+
+resource "aws_security_group_rule" "NSG-ELB-AnyOut" {
+
+    type = "egress"
+    from_port = 0
+    to_port = 0
+    protocol = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+    security_group_id = "${aws_security_group.NSG-ELB.id}"
+    
+
+}
+
+
+
+
+#Security Group for FrontEnd
+
+resource "aws_security_group" "NSG-FrontEnd" {
+
+    name = "NSG-FrontEnd"
+    description = ""
+    vpc_id = "${aws_vpc.vpc-basiclinux.id}"
+
+    tags {
+        environment = "${var.TagEnvironment}"
+        usage       = "${var.TagUsage}"
+        
+    }
+}
+
+#Rules for SG Front End HTTP In
+
+resource "aws_security_group_rule" "NSG-FrontEnd-HTTPIn" {
+
+    type = "ingress"
+    from_port = 80
+    to_port = 80
+    protocol = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+    security_group_id = "${aws_security_group.NSG-FrontEnd.id}"
+    
+
+}
+
+#Rules for SG Front End * outbound
+
+resource "aws_security_group_rule" "NSG-FrontEnd-AnyOut" {
+
+    type = "egress"
+    from_port = 0
+    to_port = 0
+    protocol = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+    security_group_id = "${aws_security_group.NSG-FrontEnd.id}"
+    
+
+}
+
+#Security Group for Bastion
+resource "aws_security_group" "NSG-Bastion" {
+
+    name = "NSG-Bastion"
+    description = ""
+    vpc_id = "${aws_vpc.vpc-basiclinux.id}"
+
+    tags {
+        environment = "${var.TagEnvironment}"
+        usage       = "${var.TagUsage}"
+        
+    }
+}
+
+
+#Rules for SG Bastion SSH In
+
+resource "aws_security_group_rule" "NSG-Bastion-SSHIn" {
+
+    type = "ingress"
+    from_port = 22
+    to_port = 22
+    protocol = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+    security_group_id = "${aws_security_group.NSG-Bastion.id}"
+    
+
+}
+
+#Rules for SG Front End * outbound
+
+resource "aws_security_group_rule" "NSG-Bastion-AnyOut" {
+
+    type = "egress"
+    from_port = 0
+    to_port = 0
+    protocol = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+    security_group_id = "${aws_security_group.NSG-Bastion.id}"
+    
 
 }
 
@@ -282,8 +425,8 @@ resource "aws_s3_bucket" "basiclinuxelblogstorage" {
         ]
     }
     EOF
-*/
-    tags {
+    */
+        tags {
         environment = "${var.TagEnvironment}"
         usage       = "${var.TagUsage}"
         Name        = "BasicLinux-ELBLogStorage"
@@ -331,24 +474,18 @@ resource "aws_elb" "BasicLinux-WebELB" {
     }
 }
 
-# Creating Back-End Address Pool
-
-
-# Creating Health Probe
-
-# Creating Load Balancer rules
 
 
 ###########################################################################
-# Managed Disk creation
+# EBS Volume
 ###########################################################################
 
-# Managed disks for Web frontend VMs
+# EBS for Web frontend VMs
 
 
-# Managed disks for Web DB Backend VMs
+# EBS for DB Backend VMs
 
-# Managed disks for Bastion VM
+# EBS for Bastion VM
 
 ###########################################################################
 #NICs creation
@@ -366,16 +503,12 @@ resource "aws_elb" "BasicLinux-WebELB" {
 #VMs Creation
 ###########################################################################
 
-# Availability Set for Web FrontEnd VMs
-
-# Availability Set for BackEnd VMs
-
-# Availability Set for Bastion VM
 
 # Web FrontEnd VMs creation
 
 
 
 # DB BackEnd VMs Creation
+
 
 # Bastion VM Creation
