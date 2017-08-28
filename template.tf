@@ -482,6 +482,30 @@ resource "aws_elb" "BasicLinux-WebELB" {
 
 # EBS for Web frontend VMs
 
+resource "aws_volume_attachment" "ebsweb1attach" {
+
+    device_name = "/dev/sdb"
+    volume_id = "${aws_ebs_volume.ebsvol-web1.id}"
+    instance_id = "${aws_instance.Web1.id}"
+}
+
+resource "aws_ebs_volume" "ebsvol-web1" {
+    availability_zone = "${var.AWSAZ1}"
+    size = 31
+}
+
+
+resource "aws_volume_attachment" "ebsweb2attach" {
+
+    device_name = "/dev/sdb"
+    volume_id = "${aws_ebs_volume.ebsvol-web2.id}"
+    instance_id = "${aws_instance.Web2.id}"
+}
+
+resource "aws_ebs_volume" "ebsvol-web2" {
+    availability_zone = "${var.AWSAZ2}"
+    size = 31
+}
 
 # EBS for DB Backend VMs
 
@@ -493,6 +517,33 @@ resource "aws_elb" "BasicLinux-WebELB" {
 
 # NIC Creation for Web FrontEnd VMs
 
+resource aws_network_interface "NIC-Web1" {
+
+    subnet_id = "${aws_subnet.Subnet-BasicLinuxFrontEnd1.id}"
+    private_ips = ["172.17.0.10"]
+
+        tags {
+        environment = "${var.TagEnvironment}"
+        usage       = "${var.TagUsage}"
+        Name        = "NIC-Web1"
+    }
+
+
+}
+
+resource "aws_network_interface" "NIC-Web2" {
+
+    subnet_id = "${aws_subnet.Subnet-BasicLinuxFrontEnd2.id}"
+    private_ips = ["172.17.0.138"]
+
+        tags {
+        environment = "${var.TagEnvironment}"
+        usage       = "${var.TagUsage}"
+        Name        = "NIC-Web2"
+    }
+
+
+}
 
 # NIC Creation for DB BackEnd VMs
 
@@ -506,6 +557,39 @@ resource "aws_elb" "BasicLinux-WebELB" {
 
 # Web FrontEnd VMs creation
 
+resource "aws_instance" "Web1" {
+
+    ami = "${var.AMIId}"
+    instance_type = "${var.VMSize}"
+    network_interface {
+        network_interface_id = "${aws_network_interface.NIC-Web1.id}"
+        device_index = 0
+
+    }
+
+     tags {
+        environment = "${var.TagEnvironment}"
+        usage       = "${var.TagUsage}"
+        Name        = "Web1"
+    }
+} 
+
+resource "aws_instance" "Web2" {
+
+    ami = "${var.AMIId}"
+    instance_type = "${var.VMSize}"
+    network_interface {
+        network_interface_id = "${aws_network_interface.NIC-Web2.id}"
+        device_index = 0
+
+    }
+
+     tags {
+        environment = "${var.TagEnvironment}"
+        usage       = "${var.TagUsage}"
+        Name        = "Web2"
+    }
+} 
 
 
 # DB BackEnd VMs Creation
