@@ -123,7 +123,7 @@ resource "aws_subnet" "Subnet-BasicLinuxBackEnd2" {
 
     vpc_id      = "${aws_vpc.vpc-basiclinux.id}"
     cidr_block  = "172.17.1.128/25"
-    availability_zone = "${var.AWSAZ1}"
+    availability_zone = "${var.AWSAZ2}"
 
     tags {
         environment = "${var.TagEnvironment}"
@@ -531,9 +531,9 @@ resource "aws_elb" "BasicLinux-WebELB" {
 
         healthy_threshold       = 2
         unhealthy_threshold     = 2
-        timeout                 = 3
+        timeout                 = 50
         target                  = "HTTP:80/"
-        interval                = 30
+        interval                = 60
 
     }
 
