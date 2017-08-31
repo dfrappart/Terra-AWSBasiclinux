@@ -510,7 +510,7 @@ resource "aws_elb" "BasicLinux-WebELB" {
     name                = "BasicLinuxWebELB"
     subnets             = ["${aws_subnet.Subnet-BasicLinuxFrontEnd1.id}","${aws_subnet.Subnet-BasicLinuxFrontEnd2.id}"]
     security_groups      = ["${aws_security_group.NSG-ELB.id}"]
-    depends_on          = ["aws_s3_bucket.basiclinuxelblogstorage"]
+    depends_on          = ["aws_s3_bucket.basiclinuxelblogstorage","aws_instance.Web1","aws_instance.Web2"]
     /*    access_logs {
 
         bucket          = "dfrelblogs"
