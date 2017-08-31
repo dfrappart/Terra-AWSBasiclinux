@@ -290,6 +290,20 @@ resource "aws_security_group_rule" "NSG-FrontEnd-HTTPIn" {
 
 }
 
+
+# Rule for SG Front End SSH in from Bastion
+
+resource "aws_security_group_rule" "NSG-FrontEnd-SSHIn" {
+
+    type = "ingress"
+    from_port = 22
+    to_port = 22
+    protocol = "tcp"
+    cidr_blocks = ["172.17.2.0/25"]
+    security_group_id = "${aws_security_group.NSG-FrontEnd.id}"
+    
+
+}
 #Rules for SG Front End * outbound
 
 resource "aws_security_group_rule" "NSG-FrontEnd-AnyOut" {
@@ -382,7 +396,7 @@ resource "aws_route_table" "natgw" {
     vpc_id                  = "${aws_vpc.vpc-basiclinux.id}" 
     route {
         cidr_block  = "0.0.0.0/0"
-        gateway_id  = "${aws_nat_gateway.BasicLinuxBastion-NatGW.id}"
+        gateway_id  = "${aws_nat_gateway.BasicLinuxnatgw.id}"
     }
 
 }
@@ -635,6 +649,42 @@ resource "aws_network_interface" "NIC-Bastion" {
         Name        = "NIC-Bastion"
     }
 
+
+}
+
+
+###########################################################################
+# NIC SG association
+###########################################################################
+
+# NIC Front End SG association
+
+resource "aws_network_interface_sg_attachment" "NICWebFrontEnd1-SGAttachment" {
+
+    
+    security_group_id       = "${aws_security_group.NSG-FrontEnd.id}"
+    network_interface_id    = "${aws_network_interface.NIC-Web1.id}"
+
+}
+
+resource "aws_network_interface_sg_attachment" "NICFWebFrontEnd2-SGAttachment" {
+
+    
+    security_group_id       = "${aws_security_group.NSG-FrontEnd.id}"
+    network_interface_id    = "${aws_network_interface.NIC-Web2.id}"
+
+}
+
+# NIC Backend SG Association
+
+
+# NIC Bastion SG Association
+
+resource "aws_network_interface_sg_attachment" "NICBastion-SGAttachment" {
+
+    
+    security_group_id       = "${aws_security_group.NSG-Bastion.id}"
+    network_interface_id    = "${aws_network_interface.NIC-Bastion.id}"
 
 }
 
