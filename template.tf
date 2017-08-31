@@ -220,7 +220,7 @@ resource "aws_network_acl_rule" "NACL-FrontEnd-anyout" {
 resource "aws_security_group" "NSG-ELB" {
 
     name = "NSG-ELB"
-    description = ""
+    description = "Security Group for ELB"
     vpc_id = "${aws_vpc.vpc-basiclinux.id}"
 
     tags {
@@ -266,7 +266,7 @@ resource "aws_security_group_rule" "NSG-ELB-AnyOut" {
 resource "aws_security_group" "NSG-FrontEnd" {
 
     name = "NSG-FrontEnd"
-    description = ""
+    description = "Security Group for FrontEnd"
     vpc_id = "${aws_vpc.vpc-basiclinux.id}"
 
     tags {
@@ -308,7 +308,7 @@ resource "aws_security_group_rule" "NSG-FrontEnd-AnyOut" {
 resource "aws_security_group" "NSG-Bastion" {
 
     name = "NSG-Bastion"
-    description = ""
+    description = "Security Gruop for Backend"
     vpc_id = "${aws_vpc.vpc-basiclinux.id}"
 
     tags {
@@ -333,7 +333,7 @@ resource "aws_security_group_rule" "NSG-Bastion-SSHIn" {
 
 }
 
-#Rules for SG Front End * outbound
+#Rules for SG Bastion * outbound
 
 resource "aws_security_group_rule" "NSG-Bastion-AnyOut" {
 
@@ -363,41 +363,96 @@ resource "aws_internet_gateway" "BasicLinuxIGW" {
     
 }
 
+######################################################################
+# route
+######################################################################
+
+resource "aws_route_table" "internetaccess" {
+
+    vpc_id                  = "${aws_vpc.vpc-basiclinux.id}" 
+    route {
+        cidr_block  = "0.0.0.0/0"
+        gateway_id  = "${aws_internet_gateway.BasicLinuxIGW.id}"
+    }
+
+}
+
+resource "aws_route_table" "natgw" {
+
+    vpc_id                  = "${aws_vpc.vpc-basiclinux.id}" 
+    route {
+        cidr_block  = "0.0.0.0/0"
+        gateway_id  = "${aws_nat_gateway.BasicLinuxBastion-NatGW.id}"
+    }
+
+}
 
 
+resource "aws_route_table_association" "SubnetWeb1-association" {
 
+    subnet_id       = "${aws_subnet.Subnet-BasicLinuxFrontEnd1.id}"
+    route_table_id  = "${aws_route_table.internetaccess.id}"
+}
+
+
+resource "aws_route_table_association" "SubnetWeb2-association" {
+
+    subnet_id       = "${aws_subnet.Subnet-BasicLinuxFrontEnd2.id}"
+    route_table_id  = "${aws_route_table.internetaccess.id}"
+}
+
+resource "aws_route_table_association" "SubnetDB1-association" {
+
+    subnet_id       = "${aws_subnet.Subnet-BasicLinuxBackEnd1.id}"
+    route_table_id  = "${aws_route_table.natgw.id}"
+}
+
+
+resource "aws_route_table_association" "SubnetDB2-association" {
+
+    subnet_id       = "${aws_subnet.Subnet-BasicLinuxBackEnd2.id}"
+    route_table_id  = "${aws_route_table.natgw.id}"
+}
+
+resource "aws_route_table_association" "SubnetBastion1-association" {
+
+    subnet_id       = "${aws_subnet.Subnet-BasicLinuxBastion1.id}"
+    route_table_id  = "${aws_route_table.internetaccess.id}"
+}
 
 ######################################################################
 # Public IP Address
 ######################################################################
 
-# Creating Public IP for Load Balancer on FrontEnd
 
-resource "aws_eip" "BasicLinuxFrontEndLB-EIP" {
-
-    vpc = true
-
-
-}
 
 # Creating Public IP for Bastion
 
 resource "aws_eip" "BasicLinuxBastion-EIP" {
 
     vpc = true
+    network_interface = "${aws_network_interface.NIC-Bastion.id}"
 
 
 }
 
+# Creating Public IP for Nat Gateway
+
+resource "aws_eip" "BasicLinuxnatgw-EIP" {
+
+    vpc = true
+
+
+}
 
 ######################################################################
 # NAT Gateway for Bastion access
 ######################################################################
 
-resource "aws_nat_gateway" "BasicLinuxBastion-NatGW" {
+resource "aws_nat_gateway" "BasicLinuxnatgw" {
 
-    allocation_id = "${aws_eip.BasicLinuxBastion-EIP.id}"
-    subnet_id = "${aws_subnet.Subnet-BasicLinuxBastion1.id}"
+    allocation_id = "${aws_eip.BasicLinuxnatgw-EIP.id}"
+    subnet_id = "${aws_subnet.Subnet-BasicLinuxFrontEnd1.id}"
 }
 
 ######################################################################
@@ -439,8 +494,9 @@ resource "aws_s3_bucket" "basiclinuxelblogstorage" {
 resource "aws_elb" "BasicLinux-WebELB" {
 
     name                = "BasicLinuxWebELB"
-    subnets  = ["${aws_subnet.Subnet-BasicLinuxFrontEnd1.id}","${aws_subnet.Subnet-BasicLinuxFrontEnd2.id}"]
-    depends_on = ["aws_s3_bucket.basiclinuxelblogstorage"]
+    subnets             = ["${aws_subnet.Subnet-BasicLinuxFrontEnd1.id}","${aws_subnet.Subnet-BasicLinuxFrontEnd2.id}"]
+    security_groups      = ["${aws_security_group.NSG-ELB.id}"]
+    depends_on          = ["aws_s3_bucket.basiclinuxelblogstorage"]
     /*    access_logs {
 
         bucket          = "dfrelblogs"
@@ -467,6 +523,12 @@ resource "aws_elb" "BasicLinux-WebELB" {
 
     }
 
+    instances                   = ["${aws_instance.Web1.id}","${aws_instance.Web2.id}"]
+    cross_zone_load_balancing   = true
+    idle_timeout                = 400
+    connection_draining         = true
+    connection_draining_timeout = 400
+
     tags {
         environment = "${var.TagEnvironment}"
         usage       = "${var.TagUsage}"
@@ -484,32 +546,45 @@ resource "aws_elb" "BasicLinux-WebELB" {
 
 resource "aws_volume_attachment" "ebsweb1attach" {
 
-    device_name = "/dev/sdb"
-    volume_id = "${aws_ebs_volume.ebsvol-web1.id}"
-    instance_id = "${aws_instance.Web1.id}"
+    device_name         = "/dev/sde" # it seems that's AWS reserves sdx from a to d so starting from sde is recommanded. For paravirtual, use sde1, sde2...
+    volume_id           = "${aws_ebs_volume.ebsvol-web1.id}"
+    instance_id         = "${aws_instance.Web1.id}"
 }
 
 resource "aws_ebs_volume" "ebsvol-web1" {
-    availability_zone = "${var.AWSAZ1}"
-    size = 31
+    availability_zone   = "${var.AWSAZ1}"
+    size                = 31
 }
 
 
 resource "aws_volume_attachment" "ebsweb2attach" {
 
-    device_name = "/dev/sdb"
-    volume_id = "${aws_ebs_volume.ebsvol-web2.id}"
-    instance_id = "${aws_instance.Web2.id}"
+    device_name         = "/dev/sde"
+    volume_id           = "${aws_ebs_volume.ebsvol-web2.id}"
+    instance_id         = "${aws_instance.Web2.id}"
 }
 
 resource "aws_ebs_volume" "ebsvol-web2" {
-    availability_zone = "${var.AWSAZ2}"
-    size = 31
+    availability_zone   = "${var.AWSAZ2}"
+    size                = 31
 }
 
 # EBS for DB Backend VMs
 
 # EBS for Bastion VM
+
+resource "aws_volume_attachment" "ebsbastionattach" {
+
+    device_name         = "/dev/sde"
+    volume_id           = "${aws_ebs_volume.ebsvol-bastion.id}"
+    instance_id         = "${aws_instance.Bastion.id}"
+}
+
+resource "aws_ebs_volume" "ebsvol-bastion" {
+    availability_zone   = "${var.AWSAZ3}"
+    size                = 31
+}
+
 
 ###########################################################################
 #NICs creation
@@ -549,10 +624,31 @@ resource "aws_network_interface" "NIC-Web2" {
 
 # NIC Creation for Bastion VMs
 
+resource "aws_network_interface" "NIC-Bastion" {
+
+    subnet_id = "${aws_subnet.Subnet-BasicLinuxBastion1.id}"
+    private_ips = ["172.17.2.10"]
+
+        tags {
+        environment = "${var.TagEnvironment}"
+        usage       = "${var.TagUsage}"
+        Name        = "NIC-Bastion"
+    }
+
+
+}
+
 
 ###########################################################################
 #VMs Creation
 ###########################################################################
+
+# AWS Keypair
+
+resource "aws_key_pair" "AWSWebKey" {
+  key_name   = "AWSWebKey"
+  public_key = "${var.AWSKeypair}"
+  }
 
 
 # Web FrontEnd VMs creation
@@ -561,12 +657,13 @@ resource "aws_instance" "Web1" {
 
     ami = "${var.AMIId}"
     instance_type = "${var.VMSize}"
+    key_name = "${aws_key_pair.AWSWebKey.key_name}"
     network_interface {
         network_interface_id = "${aws_network_interface.NIC-Web1.id}"
         device_index = 0
 
     }
-
+    user_data = "${file("userdataweb.sh")}"
      tags {
         environment = "${var.TagEnvironment}"
         usage       = "${var.TagUsage}"
@@ -578,12 +675,13 @@ resource "aws_instance" "Web2" {
 
     ami = "${var.AMIId}"
     instance_type = "${var.VMSize}"
+    key_name = "${aws_key_pair.AWSWebKey.key_name}"
     network_interface {
         network_interface_id = "${aws_network_interface.NIC-Web2.id}"
         device_index = 0
 
     }
-
+    user_data = "${file("userdataweb.sh")}"
      tags {
         environment = "${var.TagEnvironment}"
         usage       = "${var.TagUsage}"
@@ -596,3 +694,21 @@ resource "aws_instance" "Web2" {
 
 
 # Bastion VM Creation
+
+resource "aws_instance" "Bastion" {
+
+    ami = "${var.AMIId}"
+    instance_type = "${var.VMSize}"
+    key_name = "${aws_key_pair.AWSWebKey.key_name}"
+    network_interface {
+        network_interface_id = "${aws_network_interface.NIC-Bastion.id}"
+        device_index = 0
+
+    }
+    user_data = "${file("userdatabastion.sh")}"
+     tags {
+        environment = "${var.TagEnvironment}"
+        usage       = "${var.TagUsage}"
+        Name        = "Bastion"
+    }
+} 
