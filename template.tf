@@ -22,7 +22,7 @@ NSG on Backend Subnet
     Allow egress Internet
 NSG on Bastion
     Allow SSH from internet
-    Allow SSH to all subnet
+    Allow any to all subnet
     Allow Internet access egress
 
 
@@ -151,8 +151,10 @@ resource "aws_subnet" "Subnet-BasicLinuxBastion1" {
 # NACL
 ######################################################################
 
-
+######################################################################
 # Creating NACL for frontend
+######################################################################
+
 
 resource "aws_network_acl" "NACL-FrontEnd" {
 
@@ -165,6 +167,12 @@ resource "aws_network_acl" "NACL-FrontEnd" {
         Name        = "NACL-FrontEnd"
     }
 }
+
+######################################################################
+# NACL FrontEnd Rule Section
+######################################################################
+
+# HTTP In OK
 
 resource "aws_network_acl_rule" "NACL-FrontEnd-HTTPin" {
     
@@ -181,6 +189,8 @@ resource "aws_network_acl_rule" "NACL-FrontEnd-HTTPin" {
 
 }
 
+# HTTPS In OK
+
 resource "aws_network_acl_rule" "NACL-FrontEnd-HTTPSin" {
     
     network_acl_id = "${aws_network_acl.NACL-FrontEnd.id}"
@@ -196,11 +206,352 @@ resource "aws_network_acl_rule" "NACL-FrontEnd-HTTPSin" {
 
 }
 
+# Any to internet OK
+
 resource "aws_network_acl_rule" "NACL-FrontEnd-anyout" {
     
     network_acl_id = "${aws_network_acl.NACL-FrontEnd.id}"
 
+    rule_number = 1008
+    egress = true
+    protocol = "-1"
+    rule_action = "allow"
+    cidr_block = "0.0.0.0/0"
+    from_port = "0"
+    to_port = "0"
+  
+
+}
+
+# SSH in from bastion OK
+
+resource "aws_network_acl_rule" "NACL-FrontEnd-BastiontoFrontEndSSHIn" {
+    
+    network_acl_id = "${aws_network_acl.NACL-FrontEnd.id}"
+
     rule_number = 1005
+    egress = false
+    protocol = "tcp"
+    rule_action = "allow"
+    cidr_block = "172.17.2.0/25"
+    from_port = "22"
+    to_port = "22"
+
+
+}
+
+# Any to BE OK
+
+resource "aws_network_acl_rule" "NACL-FrontEndtoBackend-anyout" {
+    
+    network_acl_id = "${aws_network_acl.NACL-FrontEnd.id}"
+
+    rule_number = 1006
+    egress = true
+    protocol = "-1"
+    rule_action = "allow"
+    cidr_block = "172.17.1.0/24"
+    from_port = "0"
+    to_port = "0"
+  
+
+}
+
+# Any to Bastion OK
+
+resource "aws_network_acl_rule" "NACL-FrontEndtoBastion-anyout" {
+    
+    network_acl_id = "${aws_network_acl.NACL-FrontEnd.id}"
+
+    rule_number = 1007
+    egress = true
+    protocol = "-1"
+    rule_action = "allow"
+    cidr_block = "172.17.2.0/25"
+    from_port = "0"
+    to_port = "0"
+  
+
+}
+
+######################################################################
+# Creating NACL for Backend
+######################################################################
+
+
+resource "aws_network_acl" "NACL-BackEnd" {
+
+    vpc_id = "${aws_vpc.vpc-basiclinux.id}"
+    subnet_ids = ["${aws_subnet.Subnet-BasicLinuxBackEnd1.id}","${aws_subnet.Subnet-BasicLinuxBackEnd2.id}"]
+
+        tags {
+        environment = "${var.TagEnvironment}"
+        usage       = "${var.TagUsage}"
+        Name        = "NACL-BackEnd"
+    }
+}
+
+######################################################################
+# NACL BE Rules Section
+######################################################################
+
+# MySQL In from FE1 OK
+
+resource "aws_network_acl_rule" "NACL-BackEnd-FrontEnd1toBackEndMySQLIN" {
+    
+    network_acl_id = "${aws_network_acl.NACL-BackEnd.id}"
+
+    rule_number = 1001
+    egress = false
+    protocol = "tcp"
+    rule_action = "allow"
+    cidr_block = "172.17.0.0/25"
+    from_port = "3306"
+    to_port = "3306"
+
+
+}
+
+# MySQL In from FE2 OK
+
+resource "aws_network_acl_rule" "NACL-BackEnd-FrontEnd2toBackEndMySQLIN" {
+    
+    network_acl_id = "${aws_network_acl.NACL-BackEnd.id}"
+
+    rule_number = 1002
+    egress = false
+    protocol = "tcp"
+    rule_action = "allow"
+    cidr_block = "172.17.0.128/25"
+    from_port = "3306"
+    to_port = "3306"
+
+
+}
+
+# Any to Internet OK
+
+resource "aws_network_acl_rule" "NACL-BackEnd-anyout" {
+    
+    network_acl_id = "${aws_network_acl.NACL-BackEnd.id}"
+
+    rule_number = 1099
+    egress = true
+    protocol = "-1"
+    rule_action = "allow"
+    cidr_block = "0.0.0.0/0"
+    from_port = "0"
+    to_port = "0"
+  
+
+}
+
+
+# SSH in from Bastion to BE1
+
+resource "aws_network_acl_rule" "NACL-BackEnd-BastiontoBackEnd1SSHIn" {
+    
+    network_acl_id = "${aws_network_acl.NACL-BackEnd.id}"
+
+    rule_number = 1003
+    egress = false
+    protocol = "tcp"
+    rule_action = "allow"
+    cidr_block = "172.17.1.0/25"
+    from_port = "22"
+    to_port = "22"
+
+
+}
+
+# SSH in from Bastion to BE2
+
+resource "aws_network_acl_rule" "NACL-BackEnd-BastiontoBackEnd2SSHIn" {
+    
+    network_acl_id = "${aws_network_acl.NACL-BackEnd.id}"
+
+    rule_number = 1004
+    egress = false
+    protocol = "tcp"
+    rule_action = "allow"
+    cidr_block = "172.17.1.128/25"
+    from_port = "22"
+    to_port = "22"
+
+
+}
+
+# Any to FE1
+
+resource "aws_network_acl_rule" "NACL-BackEndtoFrontEnd1-anyout" {
+    
+    network_acl_id = "${aws_network_acl.NACL-BackEnd.id}"
+
+    rule_number = 1005
+    egress = true
+    protocol = "-1"
+    rule_action = "allow"
+    cidr_block = "172.17.0.0/25"
+    from_port = "0"
+    to_port = "0"
+  
+
+}
+
+# Any to FE2
+
+resource "aws_network_acl_rule" "NACL-BackEndtoFrontEnd2-anyout" {
+    
+    network_acl_id = "${aws_network_acl.NACL-BackEnd.id}"
+
+    rule_number = 1006
+    egress = true
+    protocol = "-1"
+    rule_action = "allow"
+    cidr_block = "172.17.0.128/25"
+    from_port = "0"
+    to_port = "0"
+  
+
+}
+
+# SSH in from Bastion to BE
+
+resource "aws_network_acl_rule" "NACL-BastiontoBackenEnd-SSHIN" {
+    
+    network_acl_id = "${aws_network_acl.NACL-BackEnd.id}"
+
+    rule_number = 1007
+    egress = false
+    protocol = "tcp"
+    rule_action = "allow"
+    cidr_block = "172.17.2.0/25"
+    from_port = "22"
+    to_port = "22"
+  
+
+}
+
+resource "aws_network_acl_rule" "NACL-BackEndtoBastion-anyout" {
+    
+    network_acl_id = "${aws_network_acl.NACL-BackEnd.id}"
+
+    rule_number = 1008
+    egress = true
+    protocol = "-1"
+    rule_action = "allow"
+    cidr_block = "172.17.2.0/25"
+    from_port = "0"
+    to_port = "0"
+  
+
+}
+
+######################################################################
+# Creating NACL for Bastion
+######################################################################
+
+
+resource "aws_network_acl" "NACL-Bastion" {
+
+    vpc_id = "${aws_vpc.vpc-basiclinux.id}"
+    subnet_ids = ["${aws_subnet.Subnet-BasicLinuxBastion1.id}"]
+
+        tags {
+        environment = "${var.TagEnvironment}"
+        usage       = "${var.TagUsage}"
+        Name        = "NACL-Bastion"
+    }
+}
+
+######################################################################
+# NACL Rules Section for Bastion
+######################################################################
+
+resource "aws_network_acl_rule" "NACL-Bastion-SSHIn" {
+    
+    network_acl_id = "${aws_network_acl.NACL-Bastion.id}"
+
+    rule_number = 1001
+    egress = false
+    protocol = "tcp"
+    rule_action = "allow"
+    cidr_block = "0.0.0.0/0"
+    from_port = "22"
+    to_port = "22"
+  
+
+}
+
+resource "aws_network_acl_rule" "NACL-FE1toBastion-AnyIn" {
+    
+    network_acl_id = "${aws_network_acl.NACL-Bastion.id}"
+
+    rule_number = 1002
+    egress = false
+    protocol = "-1"
+    rule_action = "allow"
+    cidr_block = "172.17.0.0/25"
+    from_port = "0"
+    to_port = "0"
+  
+
+}
+
+
+resource "aws_network_acl_rule" "NACL-FE2toBastion-AnyIn" {
+    
+    network_acl_id = "${aws_network_acl.NACL-Bastion.id}"
+
+    rule_number = 1003
+    egress = false
+    protocol = "-1"
+    rule_action = "allow"
+    cidr_block = "172.17.0.128/25"
+    from_port = "0"
+    to_port = "0"
+  
+
+}
+
+
+
+
+resource "aws_network_acl_rule" "NACL-BastiontoFE1-AnyOut" {
+    
+    network_acl_id = "${aws_network_acl.NACL-Bastion.id}"
+
+    rule_number = 1006
+    egress = true
+    protocol = "-1"
+    rule_action = "allow"
+    cidr_block = "172.17.0.0/25"
+    from_port = "0"
+    to_port = "0"
+  
+
+}
+
+resource "aws_network_acl_rule" "NACL-BastiontoFE2-AnyOut" {
+    
+    network_acl_id = "${aws_network_acl.NACL-Bastion.id}"
+
+    rule_number = 1007
+    egress = true
+    protocol = "-1"
+    rule_action = "allow"
+    cidr_block = "172.17.0.128/25"
+    from_port = "0"
+    to_port = "0"
+  
+
+}
+
+resource "aws_network_acl_rule" "NACL-BastiontoInternet-AnyOut" {
+    
+    network_acl_id = "${aws_network_acl.NACL-Bastion.id}"
+
+    rule_number = 1008
     egress = true
     protocol = "-1"
     rule_action = "allow"
@@ -226,6 +577,7 @@ resource "aws_security_group" "NSG-ELB" {
     tags {
         environment = "${var.TagEnvironment}"
         usage       = "${var.TagUsage}"
+        Name        = "NSG-ELB"
         
     }
 }
@@ -258,9 +610,32 @@ resource "aws_security_group_rule" "NSG-ELB-AnyOut" {
 
 }
 
+# Rules for SG ELB to Front End
 
 
+resource "aws_security_group_rule" "NSG-ELB-ELBtoFE1AnyOut" {
 
+    type = "egress"
+    from_port = 0
+    to_port = 0
+    protocol = "-1"
+    cidr_blocks = ["172.17.0.0/25"]
+    security_group_id = "${aws_security_group.NSG-ELB.id}"
+    
+
+}
+
+resource "aws_security_group_rule" "NSG-ELB-ELBtoFE2AnyOut" {
+
+    type = "egress"
+    from_port = 0
+    to_port = 0
+    protocol = "-1"
+    cidr_blocks = ["172.17.0.128/25"]
+    security_group_id = "${aws_security_group.NSG-ELB.id}"
+    
+
+}
 #Security Group for FrontEnd
 
 resource "aws_security_group" "NSG-FrontEnd" {
@@ -272,7 +647,7 @@ resource "aws_security_group" "NSG-FrontEnd" {
     tags {
         environment = "${var.TagEnvironment}"
         usage       = "${var.TagUsage}"
-        
+        Name        = "NSG-FrontEnd"
     }
 }
 
@@ -304,6 +679,7 @@ resource "aws_security_group_rule" "NSG-FrontEnd-SSHIn" {
     
 
 }
+
 #Rules for SG Front End * outbound
 
 resource "aws_security_group_rule" "NSG-FrontEnd-AnyOut" {
@@ -319,6 +695,7 @@ resource "aws_security_group_rule" "NSG-FrontEnd-AnyOut" {
 }
 
 #Security Group for Bastion
+
 resource "aws_security_group" "NSG-Bastion" {
 
     name = "NSG-Bastion"
@@ -328,7 +705,7 @@ resource "aws_security_group" "NSG-Bastion" {
     tags {
         environment = "${var.TagEnvironment}"
         usage       = "${var.TagUsage}"
-        
+        Name        = "NSG-Bastion"
     }
 }
 
@@ -347,6 +724,8 @@ resource "aws_security_group_rule" "NSG-Bastion-SSHIn" {
 
 }
 
+
+
 #Rules for SG Bastion * outbound
 
 resource "aws_security_group_rule" "NSG-Bastion-AnyOut" {
@@ -356,6 +735,33 @@ resource "aws_security_group_rule" "NSG-Bastion-AnyOut" {
     to_port = 0
     protocol = "-1"
     cidr_blocks = ["0.0.0.0/0"]
+    security_group_id = "${aws_security_group.NSG-Bastion.id}"
+    
+
+}
+
+
+#Rules for SG Bastion * outbound
+
+resource "aws_security_group_rule" "NSG-BastiontoFE1-AnyOut" {
+
+    type = "egress"
+    from_port = 0
+    to_port = 0
+    protocol = "-1"
+    cidr_blocks = ["172.17.0.0/25"]
+    security_group_id = "${aws_security_group.NSG-Bastion.id}"
+    
+
+}
+
+resource "aws_security_group_rule" "NSG-BastionFE2-AnyOut" {
+
+    type = "egress"
+    from_port = 0
+    to_port = 0
+    protocol = "-1"
+    cidr_blocks = ["172.17.0.128/25"]
     security_group_id = "${aws_security_group.NSG-Bastion.id}"
     
 
