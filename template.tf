@@ -5,9 +5,9 @@
 1 Subnet BackEnd
 1 Subnet Bastion
 2 VM FrontEnd Web Apache + Elastic Load Balancer
-2 VM Backend DB PostgreSQL 
+2 VM Backend DB mySQL 
 1 VM Linux Bastion
-1 public IP on FrontEnd
+2 public IP on FrontEnd
 1 public IP on Bastion
 1 external Load Balancer
 NAT Gateway
@@ -16,9 +16,11 @@ EBS Volume
 NSG on FrontEnd Subnet
     Allow HTTP HTTPS from Internet through ALB
     Allow Access to internet egress
-    Allow PostgreSQL to DB Tier
+    Allow MySQL to DB Tier
+    Allow SSH from Bastion
 NSG on Backend Subnet
-    Allow PostgreSQL Access from Web tier
+    Allow MySQL Access from Web tier
+    Allow SSH from Bastion
     Allow egress Internet
 NSG on Bastion
     Allow SSH from internet
@@ -76,6 +78,7 @@ resource "aws_subnet" "Subnet-BasicLinuxFrontEnd1" {
     vpc_id      = "${aws_vpc.vpc-basiclinux.id}"
     cidr_block  = "172.17.0.0/25"
     availability_zone = "${var.AWSAZ1}"
+    #map_public_ip_on_launch = true
 
     tags {
         environment = "${var.TagEnvironment}"
@@ -92,6 +95,7 @@ resource "aws_subnet" "Subnet-BasicLinuxFrontEnd2" {
     vpc_id      = "${aws_vpc.vpc-basiclinux.id}"
     cidr_block  = "172.17.0.128/25"
     availability_zone = "${var.AWSAZ2}"
+    #map_public_ip_on_launch = true
 
     tags {
         environment = "${var.TagEnvironment}"
@@ -151,492 +155,82 @@ resource "aws_subnet" "Subnet-BasicLinuxBastion1" {
 # NACL
 ######################################################################
 
-######################################################################
-# Creating NACL for frontend
-######################################################################
-
-
-resource "aws_network_acl" "NACL-FrontEnd" {
-
-    vpc_id = "${aws_vpc.vpc-basiclinux.id}"
-    subnet_ids = ["${aws_subnet.Subnet-BasicLinuxFrontEnd1.id}","${aws_subnet.Subnet-BasicLinuxFrontEnd2.id}"]
-
-        tags {
-        environment = "${var.TagEnvironment}"
-        usage       = "${var.TagUsage}"
-        Name        = "NACL-FrontEnd"
-    }
-}
-
-######################################################################
-# NACL FrontEnd Rule Section
-######################################################################
-
-# HTTP In OK
-
-resource "aws_network_acl_rule" "NACL-FrontEnd-HTTPin" {
-    
-    network_acl_id = "${aws_network_acl.NACL-FrontEnd.id}"
-
-    rule_number = 1003
-    egress = false
-    protocol = "tcp"
-    rule_action = "allow"
-    cidr_block = "0.0.0.0/0"
-    from_port = "80"
-    to_port = "80"
-
-
-}
-
-# HTTPS In OK
-
-resource "aws_network_acl_rule" "NACL-FrontEnd-HTTPSin" {
-    
-    network_acl_id = "${aws_network_acl.NACL-FrontEnd.id}"
-
-    rule_number = 1004
-    egress = false
-    protocol = "tcp"
-    rule_action = "allow"
-    cidr_block = "0.0.0.0/0"
-    from_port = "443"
-    to_port = "443"
-
-
-}
-
-# Any to internet OK
-
-resource "aws_network_acl_rule" "NACL-FrontEnd-anyout" {
-    
-    network_acl_id = "${aws_network_acl.NACL-FrontEnd.id}"
-
-    rule_number = 1008
-    egress = true
-    protocol = "-1"
-    rule_action = "allow"
-    cidr_block = "0.0.0.0/0"
-    from_port = "0"
-    to_port = "0"
-  
-
-}
-
-# SSH in from bastion OK
-
-resource "aws_network_acl_rule" "NACL-FrontEnd-BastiontoFrontEndSSHIn" {
-    
-    network_acl_id = "${aws_network_acl.NACL-FrontEnd.id}"
-
-    rule_number = 1005
-    egress = false
-    protocol = "tcp"
-    rule_action = "allow"
-    cidr_block = "172.17.2.0/25"
-    from_port = "22"
-    to_port = "22"
-
-
-}
-
-# Any to BE OK
-
-resource "aws_network_acl_rule" "NACL-FrontEndtoBackend-anyout" {
-    
-    network_acl_id = "${aws_network_acl.NACL-FrontEnd.id}"
-
-    rule_number = 1006
-    egress = true
-    protocol = "-1"
-    rule_action = "allow"
-    cidr_block = "172.17.1.0/24"
-    from_port = "0"
-    to_port = "0"
-  
-
-}
-
-# Any to Bastion OK
-
-resource "aws_network_acl_rule" "NACL-FrontEndtoBastion-anyout" {
-    
-    network_acl_id = "${aws_network_acl.NACL-FrontEnd.id}"
-
-    rule_number = 1007
-    egress = true
-    protocol = "-1"
-    rule_action = "allow"
-    cidr_block = "172.17.2.0/25"
-    from_port = "0"
-    to_port = "0"
-  
-
-}
-
-######################################################################
-# Creating NACL for Backend
-######################################################################
-
-
-resource "aws_network_acl" "NACL-BackEnd" {
-
-    vpc_id = "${aws_vpc.vpc-basiclinux.id}"
-    subnet_ids = ["${aws_subnet.Subnet-BasicLinuxBackEnd1.id}","${aws_subnet.Subnet-BasicLinuxBackEnd2.id}"]
-
-        tags {
-        environment = "${var.TagEnvironment}"
-        usage       = "${var.TagUsage}"
-        Name        = "NACL-BackEnd"
-    }
-}
-
-######################################################################
-# NACL BE Rules Section
-######################################################################
-
-# MySQL In from FE1 OK
-
-resource "aws_network_acl_rule" "NACL-BackEnd-FrontEnd1toBackEndMySQLIN" {
-    
-    network_acl_id = "${aws_network_acl.NACL-BackEnd.id}"
-
-    rule_number = 1001
-    egress = false
-    protocol = "tcp"
-    rule_action = "allow"
-    cidr_block = "172.17.0.0/25"
-    from_port = "3306"
-    to_port = "3306"
-
-
-}
-
-# MySQL In from FE2 OK
-
-resource "aws_network_acl_rule" "NACL-BackEnd-FrontEnd2toBackEndMySQLIN" {
-    
-    network_acl_id = "${aws_network_acl.NACL-BackEnd.id}"
-
-    rule_number = 1002
-    egress = false
-    protocol = "tcp"
-    rule_action = "allow"
-    cidr_block = "172.17.0.128/25"
-    from_port = "3306"
-    to_port = "3306"
-
-
-}
-
-# Any to Internet OK
-
-resource "aws_network_acl_rule" "NACL-BackEnd-anyout" {
-    
-    network_acl_id = "${aws_network_acl.NACL-BackEnd.id}"
-
-    rule_number = 1099
-    egress = true
-    protocol = "-1"
-    rule_action = "allow"
-    cidr_block = "0.0.0.0/0"
-    from_port = "0"
-    to_port = "0"
-  
-
-}
-
-
-# SSH in from Bastion to BE1
-
-resource "aws_network_acl_rule" "NACL-BackEnd-BastiontoBackEnd1SSHIn" {
-    
-    network_acl_id = "${aws_network_acl.NACL-BackEnd.id}"
-
-    rule_number = 1003
-    egress = false
-    protocol = "tcp"
-    rule_action = "allow"
-    cidr_block = "172.17.1.0/25"
-    from_port = "22"
-    to_port = "22"
-
-
-}
-
-# SSH in from Bastion to BE2
-
-resource "aws_network_acl_rule" "NACL-BackEnd-BastiontoBackEnd2SSHIn" {
-    
-    network_acl_id = "${aws_network_acl.NACL-BackEnd.id}"
-
-    rule_number = 1004
-    egress = false
-    protocol = "tcp"
-    rule_action = "allow"
-    cidr_block = "172.17.1.128/25"
-    from_port = "22"
-    to_port = "22"
-
-
-}
-
-# Any to FE1
-
-resource "aws_network_acl_rule" "NACL-BackEndtoFrontEnd1-anyout" {
-    
-    network_acl_id = "${aws_network_acl.NACL-BackEnd.id}"
-
-    rule_number = 1005
-    egress = true
-    protocol = "-1"
-    rule_action = "allow"
-    cidr_block = "172.17.0.0/25"
-    from_port = "0"
-    to_port = "0"
-  
-
-}
-
-# Any to FE2
-
-resource "aws_network_acl_rule" "NACL-BackEndtoFrontEnd2-anyout" {
-    
-    network_acl_id = "${aws_network_acl.NACL-BackEnd.id}"
-
-    rule_number = 1006
-    egress = true
-    protocol = "-1"
-    rule_action = "allow"
-    cidr_block = "172.17.0.128/25"
-    from_port = "0"
-    to_port = "0"
-  
-
-}
-
-# SSH in from Bastion to BE
-
-resource "aws_network_acl_rule" "NACL-BastiontoBackenEnd-SSHIN" {
-    
-    network_acl_id = "${aws_network_acl.NACL-BackEnd.id}"
-
-    rule_number = 1007
-    egress = false
-    protocol = "tcp"
-    rule_action = "allow"
-    cidr_block = "172.17.2.0/25"
-    from_port = "22"
-    to_port = "22"
-  
-
-}
-
-resource "aws_network_acl_rule" "NACL-BackEndtoBastion-anyout" {
-    
-    network_acl_id = "${aws_network_acl.NACL-BackEnd.id}"
-
-    rule_number = 1008
-    egress = true
-    protocol = "-1"
-    rule_action = "allow"
-    cidr_block = "172.17.2.0/25"
-    from_port = "0"
-    to_port = "0"
-  
-
-}
-
-######################################################################
-# Creating NACL for Bastion
-######################################################################
-
-
-resource "aws_network_acl" "NACL-Bastion" {
-
-    vpc_id = "${aws_vpc.vpc-basiclinux.id}"
-    subnet_ids = ["${aws_subnet.Subnet-BasicLinuxBastion1.id}"]
-
-        tags {
-        environment = "${var.TagEnvironment}"
-        usage       = "${var.TagUsage}"
-        Name        = "NACL-Bastion"
-    }
-}
-
-######################################################################
-# NACL Rules Section for Bastion
-######################################################################
-
-resource "aws_network_acl_rule" "NACL-Bastion-SSHIn" {
-    
-    network_acl_id = "${aws_network_acl.NACL-Bastion.id}"
-
-    rule_number = 1001
-    egress = false
-    protocol = "tcp"
-    rule_action = "allow"
-    cidr_block = "0.0.0.0/0"
-    from_port = "22"
-    to_port = "22"
-  
-
-}
-
-resource "aws_network_acl_rule" "NACL-FE1toBastion-AnyIn" {
-    
-    network_acl_id = "${aws_network_acl.NACL-Bastion.id}"
-
-    rule_number = 1002
-    egress = false
-    protocol = "-1"
-    rule_action = "allow"
-    cidr_block = "172.17.0.0/25"
-    from_port = "0"
-    to_port = "0"
-  
-
-}
-
-
-resource "aws_network_acl_rule" "NACL-FE2toBastion-AnyIn" {
-    
-    network_acl_id = "${aws_network_acl.NACL-Bastion.id}"
-
-    rule_number = 1003
-    egress = false
-    protocol = "-1"
-    rule_action = "allow"
-    cidr_block = "172.17.0.128/25"
-    from_port = "0"
-    to_port = "0"
-  
-
-}
-
-
-
-
-resource "aws_network_acl_rule" "NACL-BastiontoFE1-AnyOut" {
-    
-    network_acl_id = "${aws_network_acl.NACL-Bastion.id}"
-
-    rule_number = 1006
-    egress = true
-    protocol = "-1"
-    rule_action = "allow"
-    cidr_block = "172.17.0.0/25"
-    from_port = "0"
-    to_port = "0"
-  
-
-}
-
-resource "aws_network_acl_rule" "NACL-BastiontoFE2-AnyOut" {
-    
-    network_acl_id = "${aws_network_acl.NACL-Bastion.id}"
-
-    rule_number = 1007
-    egress = true
-    protocol = "-1"
-    rule_action = "allow"
-    cidr_block = "172.17.0.128/25"
-    from_port = "0"
-    to_port = "0"
-  
-
-}
-
-resource "aws_network_acl_rule" "NACL-BastiontoInternet-AnyOut" {
-    
-    network_acl_id = "${aws_network_acl.NACL-Bastion.id}"
-
-    rule_number = 1008
-    egress = true
-    protocol = "-1"
-    rule_action = "allow"
-    cidr_block = "0.0.0.0/0"
-    from_port = "0"
-    to_port = "0"
-  
-
-}
 
 ######################################################################
 # Security Group
 ######################################################################
 
-#Security Group for ELB
 
-resource "aws_security_group" "NSG-ELB" {
+######################################################################
+#Security Group for ALB
+######################################################################
 
-    name = "NSG-ELB"
-    description = "Security Group for ELB"
+resource "aws_security_group" "NSG-ALB" {
+
+    name = "NSG-ALB"
+    description = "Security Group for ALB"
     vpc_id = "${aws_vpc.vpc-basiclinux.id}"
 
     tags {
         environment = "${var.TagEnvironment}"
         usage       = "${var.TagUsage}"
-        Name        = "NSG-ELB"
+        Name        = "NSG-ALB"
         
     }
 }
 
-#Rules for SG ELB HTTP In
 
-resource "aws_security_group_rule" "NSG-ELB-HTTPIn" {
+######################################################################
+#Security Group Rules section for ALB
+######################################################################
+
+#Rule for SG ALB HTTP In
+
+resource "aws_security_group_rule" "NSG-ALB-HTTPIn" {
 
     type = "ingress"
     from_port = 80
     to_port = 80
     protocol = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
-    security_group_id = "${aws_security_group.NSG-ELB.id}"
+    security_group_id = "${aws_security_group.NSG-ALB.id}"
     
 
 }
 
-#Rules for SG Front End * outbound
+#Rule for SG ALB HTTPS In
 
-resource "aws_security_group_rule" "NSG-ELB-AnyOut" {
+resource "aws_security_group_rule" "NSG-ALB-HTTPSIn" {
+
+    type = "ingress"
+    from_port = 443
+    to_port = 443
+    protocol = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+    security_group_id = "${aws_security_group.NSG-ALB.id}"
+    
+
+}
+
+#Rule for SG Front End * outbound
+
+resource "aws_security_group_rule" "NSG-ALB-AnyOut" {
 
     type = "egress"
     from_port = 0
     to_port = 0
     protocol = "-1"
     cidr_blocks = ["0.0.0.0/0"]
-    security_group_id = "${aws_security_group.NSG-ELB.id}"
+    security_group_id = "${aws_security_group.NSG-ALB.id}"
     
 
 }
 
-# Rules for SG ELB to Front End
 
 
-resource "aws_security_group_rule" "NSG-ELB-ELBtoFE1AnyOut" {
-
-    type = "egress"
-    from_port = 0
-    to_port = 0
-    protocol = "-1"
-    cidr_blocks = ["172.17.0.0/25"]
-    security_group_id = "${aws_security_group.NSG-ELB.id}"
-    
-
-}
-
-resource "aws_security_group_rule" "NSG-ELB-ELBtoFE2AnyOut" {
-
-    type = "egress"
-    from_port = 0
-    to_port = 0
-    protocol = "-1"
-    cidr_blocks = ["172.17.0.128/25"]
-    security_group_id = "${aws_security_group.NSG-ELB.id}"
-    
-
-}
-#Security Group for FrontEnd
+######################################################################
+#Security Group for FE
+######################################################################
 
 resource "aws_security_group" "NSG-FrontEnd" {
 
@@ -651,20 +245,47 @@ resource "aws_security_group" "NSG-FrontEnd" {
     }
 }
 
+######################################################################
+#Security Group Rules section for FE
+######################################################################
+
 #Rules for SG Front End HTTP In
 
-resource "aws_security_group_rule" "NSG-FrontEnd-HTTPIn" {
+resource "aws_security_group_rule" "NSG-FrontEnd-HTTPInFromFE1" {
 
     type = "ingress"
     from_port = 80
     to_port = 80
     protocol = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = ["172.17.0.0/25"]
     security_group_id = "${aws_security_group.NSG-FrontEnd.id}"
     
 
 }
 
+resource "aws_security_group_rule" "NSG-FrontEnd-HTTPInFromFE2" {
+
+    type = "ingress"
+    from_port = 80
+    to_port = 80
+    protocol = "tcp"
+    cidr_blocks = ["172.17.0.128/25"]
+    security_group_id = "${aws_security_group.NSG-FrontEnd.id}"
+    
+
+}
+
+#resource "aws_security_group_rule" "NSG-FrontEnd-HTTPInFromWebInstance" {
+#
+#    type = "ingress"
+#    from_port = 80
+#    to_port = 80
+#    protocol = "tcp"
+#    cidr_blocks = ["${aws_instance.Web1.private_ip}/32","${aws_instance.Web2.private_ip}/32"]
+#    security_group_id = "${aws_security_group.NSG-FrontEnd.id}"
+#    
+#
+#}
 
 # Rule for SG Front End SSH in from Bastion
 
@@ -694,12 +315,89 @@ resource "aws_security_group_rule" "NSG-FrontEnd-AnyOut" {
 
 }
 
+######################################################################
+#Security Group for FE
+######################################################################
+
+resource "aws_security_group" "NSG-BackEnd" {
+
+    name = "NSG-BackEnd"
+    description = "Security Group for BackEnd"
+    vpc_id = "${aws_vpc.vpc-basiclinux.id}"
+
+    tags {
+        environment = "${var.TagEnvironment}"
+        usage       = "${var.TagUsage}"
+        Name        = "NSG-BackEnd"
+    }
+}
+
+######################################################################
+#Security Group Rules section for FE
+######################################################################
+
+#Rules for SG Front End HTTP In
+
+resource "aws_security_group_rule" "NSG-BackEnd-MySQLInFromFE1" {
+
+    type = "ingress"
+    from_port = 3306
+    to_port = 3306
+    protocol = "tcp"
+    cidr_blocks = ["172.17.0.0/25"]
+    security_group_id = "${aws_security_group.NSG-BackEnd.id}"
+    
+
+}
+
+resource "aws_security_group_rule" "NSG-BackEnd-MySQLInFromFE2" {
+
+    type = "ingress"
+    from_port = 3306
+    to_port = 3306
+    protocol = "tcp"
+    cidr_blocks = ["172.17.0.128/25"]
+    security_group_id = "${aws_security_group.NSG-BackEnd.id}"
+    
+
+}
+# Rule for SG Front End SSH in from Bastion
+
+resource "aws_security_group_rule" "NSG-BackEnd-SSHIn" {
+
+    type = "ingress"
+    from_port = 22
+    to_port = 22
+    protocol = "tcp"
+    cidr_blocks = ["172.17.2.0/25"]
+    security_group_id = "${aws_security_group.NSG-BackEnd.id}"
+    
+
+}
+
+#Rules for SG Front End * outbound
+
+resource "aws_security_group_rule" "NSG-BackEnd-AnyOut" {
+
+    type = "egress"
+    from_port = 0
+    to_port = 0
+    protocol = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+    security_group_id = "${aws_security_group.NSG-BackEnd.id}"
+    
+
+}
+
+######################################################################
 #Security Group for Bastion
+######################################################################
+
 
 resource "aws_security_group" "NSG-Bastion" {
 
     name = "NSG-Bastion"
-    description = "Security Gruop for Backend"
+    description = "Security Group for Bastion"
     vpc_id = "${aws_vpc.vpc-basiclinux.id}"
 
     tags {
@@ -708,6 +406,10 @@ resource "aws_security_group" "NSG-Bastion" {
         Name        = "NSG-Bastion"
     }
 }
+
+######################################################################
+#Security Group Rules section for Bastion
+######################################################################
 
 
 #Rules for SG Bastion SSH In
@@ -724,9 +426,23 @@ resource "aws_security_group_rule" "NSG-Bastion-SSHIn" {
 
 }
 
+#Rules for SG Bastion HTTP In
+
+resource "aws_security_group_rule" "NSG-Bastion-HTTPIn" {
+
+    type = "ingress"
+    from_port = 80
+    to_port = 80
+    protocol = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+    security_group_id = "${aws_security_group.NSG-Bastion.id}"
+    
+
+}
 
 
-#Rules for SG Bastion * outbound
+
+#Rule for SG Bastion * outbound
 
 resource "aws_security_group_rule" "NSG-Bastion-AnyOut" {
 
@@ -741,31 +457,7 @@ resource "aws_security_group_rule" "NSG-Bastion-AnyOut" {
 }
 
 
-#Rules for SG Bastion * outbound
 
-resource "aws_security_group_rule" "NSG-BastiontoFE1-AnyOut" {
-
-    type = "egress"
-    from_port = 0
-    to_port = 0
-    protocol = "-1"
-    cidr_blocks = ["172.17.0.0/25"]
-    security_group_id = "${aws_security_group.NSG-Bastion.id}"
-    
-
-}
-
-resource "aws_security_group_rule" "NSG-BastionFE2-AnyOut" {
-
-    type = "egress"
-    from_port = 0
-    to_port = 0
-    protocol = "-1"
-    cidr_blocks = ["172.17.0.128/25"]
-    security_group_id = "${aws_security_group.NSG-Bastion.id}"
-    
-
-}
 
 ######################################################################
 # Internet GW
@@ -795,6 +487,12 @@ resource "aws_route_table" "internetaccess" {
         gateway_id  = "${aws_internet_gateway.BasicLinuxIGW.id}"
     }
 
+    tags {
+        environment = "${var.TagEnvironment}"
+        usage       = "${var.TagUsage}"
+        Name        = "Basiclinux-internetaccessRoute"
+    }
+
 }
 
 resource "aws_route_table" "natgw" {
@@ -803,6 +501,12 @@ resource "aws_route_table" "natgw" {
     route {
         cidr_block  = "0.0.0.0/0"
         gateway_id  = "${aws_nat_gateway.BasicLinuxnatgw.id}"
+    }
+
+    tags {
+        environment = "${var.TagEnvironment}"
+        usage       = "${var.TagUsage}"
+        Name        = "Basiclinux-natgwroute"
     }
 
 }
@@ -856,6 +560,26 @@ resource "aws_eip" "BasicLinuxBastion-EIP" {
 
 }
 
+# Creating Public IP for Web1
+
+resource "aws_eip" "BasicLinuxWeb1-EIP" {
+
+    vpc = true
+    network_interface = "${aws_network_interface.NIC-Web1.id}"
+
+
+}
+
+# Creating Public IP for Web2
+
+resource "aws_eip" "BasicLinuxWeb2-EIP" {
+
+    vpc = true
+    network_interface = "${aws_network_interface.NIC-Web2.id}"
+
+
+}
+
 # Creating Public IP for Nat Gateway
 
 resource "aws_eip" "BasicLinuxnatgw-EIP" {
@@ -881,7 +605,7 @@ resource "aws_nat_gateway" "BasicLinuxnatgw" {
 
 # Creating S3 bucket for logs
 
-resource "aws_s3_bucket" "basiclinuxelblogstorage" {
+resource "aws_s3_bucket" "basiclinuxalblogstorage" {
 
     bucket = "dfrelblogs"
     /*policy = <<EOF
@@ -904,19 +628,22 @@ resource "aws_s3_bucket" "basiclinuxelblogstorage" {
         tags {
         environment = "${var.TagEnvironment}"
         usage       = "${var.TagUsage}"
-        Name        = "BasicLinux-ELBLogStorage"
+        Name        = "BasicLinux-ALBLogStorage"
     }
     
 }
 
-# Creating ELB Classic for front end http / https
+# Creating ALB Classic for front end http / https
 
-resource "aws_elb" "BasicLinux-WebELB" {
+resource "aws_alb" "BasicLinux-WebALB" {
 
-    name                = "BasicLinuxWebELB"
+    name                = "BasicLinux-WebALB"
+    internal            = false
     subnets             = ["${aws_subnet.Subnet-BasicLinuxFrontEnd1.id}","${aws_subnet.Subnet-BasicLinuxFrontEnd2.id}"]
-    security_groups      = ["${aws_security_group.NSG-ELB.id}"]
-    depends_on          = ["aws_s3_bucket.basiclinuxelblogstorage","aws_instance.Web1","aws_instance.Web2"]
+    security_groups     = ["${aws_security_group.NSG-ALB.id}"]
+    idle_timeout        = 60
+    depends_on          = ["aws_s3_bucket.basiclinuxalblogstorage","aws_instance.Web1","aws_instance.Web2"]
+    
     /*    access_logs {
 
         bucket          = "dfrelblogs"
@@ -924,39 +651,78 @@ resource "aws_elb" "BasicLinux-WebELB" {
         interval        = 60
     }
     */
-    listener {
-        
-        instance_port       = 80
-        instance_protocol   = "http"
-        lb_port             = 80
-        lb_protocol         = "http"
 
-    }
-
-    health_check {
-
-        healthy_threshold       = 2
-        unhealthy_threshold     = 2
-        timeout                 = 50
-        target                  = "HTTP:80/"
-        interval                = 60
-
-    }
-
-    instances                   = ["${aws_instance.Web1.id}","${aws_instance.Web2.id}"]
-    cross_zone_load_balancing   = true
-    idle_timeout                = 400
-    connection_draining         = true
-    connection_draining_timeout = 400
 
     tags {
         environment = "${var.TagEnvironment}"
         usage       = "${var.TagUsage}"
-        Name        = "BasicLinux-WebELB"
+        Name        = "BasicLinux-WebALB"
     }
 }
 
+# Creating alb listener
 
+resource "aws_alb_listener" "BasicLinuxWebALBListenerHTTP" {
+
+    load_balancer_arn   = "${aws_alb.BasicLinux-WebALB.arn}"
+    port                = "80"
+    protocol            = "HTTP"
+
+    default_action {
+
+        target_group_arn = "${aws_alb_target_group.BasicLinuxWebALBTargetGroup.arn}"
+        type = "forward"
+    }
+
+}
+
+# Creating alb listener rule
+
+resource "aws_alb_listener_rule" "BasicLinuxWebALBListenerHTTPRule" {
+
+    listener_arn    = "${aws_alb_listener.BasicLinuxWebALBListenerHTTP.arn}"
+    priority        = 100
+
+    action {
+
+        type                = "forward"
+        target_group_arn    = "${aws_alb_target_group.BasicLinuxWebALBTargetGroup.arn}"
+    }
+
+    condition {
+
+        field   = "path-pattern"
+        values  = ["/"]
+    }
+}
+
+# Creating alb target group
+
+resource "aws_alb_target_group" "BasicLinuxWebALBTargetGroup" {
+
+    name = "BasicLinuxWebALBTargetGroup"
+    port = 80
+    protocol = "HTTP"
+    vpc_id = "${aws_vpc.vpc-basiclinux.id}"
+}
+
+# Creating alb targer group attachment for instance Web1
+
+resource "aws_alb_target_group_attachment" "BasicLinuxWebALBTargetGroupAttachmentWeb1" {
+
+    target_group_arn    = "${aws_alb_target_group.BasicLinuxWebALBTargetGroup.id}"
+    target_id           = "${aws_instance.Web1.id}"
+    port                = 80
+}
+
+# Creating alb targer group attachment for instance Web2
+
+resource "aws_alb_target_group_attachment" "BasicLinuxWebALBTargetGroupAttachmentWeb2" {
+
+    target_group_arn    = "${aws_alb_target_group.BasicLinuxWebALBTargetGroup.id}"
+    target_id           = "${aws_instance.Web2.id}"
+    port                = 80
+}
 
 ###########################################################################
 # EBS Volume
@@ -990,6 +756,31 @@ resource "aws_ebs_volume" "ebsvol-web2" {
 }
 
 # EBS for DB Backend VMs
+
+resource "aws_volume_attachment" "ebsDB1attach" {
+
+    device_name         = "/dev/sde" # it seems that's AWS reserves sdx from a to d so starting from sde is recommanded. For paravirtual, use sde1, sde2...
+    volume_id           = "${aws_ebs_volume.ebsvol-DB1.id}"
+    instance_id         = "${aws_instance.DB1.id}"
+}
+
+resource "aws_ebs_volume" "ebsvol-DB1" {
+    availability_zone   = "${var.AWSAZ1}"
+    size                = 31
+}
+
+
+resource "aws_volume_attachment" "ebsDB2attach" {
+
+    device_name         = "/dev/sde"
+    volume_id           = "${aws_ebs_volume.ebsvol-DB2.id}"
+    instance_id         = "${aws_instance.DB2.id}"
+}
+
+resource "aws_ebs_volume" "ebsvol-DB2" {
+    availability_zone   = "${var.AWSAZ2}"
+    size                = 31
+}
 
 # EBS for Bastion VM
 
@@ -1042,6 +833,34 @@ resource "aws_network_interface" "NIC-Web2" {
 
 # NIC Creation for DB BackEnd VMs
 
+resource aws_network_interface "NIC-DB1" {
+
+    subnet_id = "${aws_subnet.Subnet-BasicLinuxBackEnd1.id}"
+    private_ips = ["172.17.1.10"]
+
+        tags {
+        environment = "${var.TagEnvironment}"
+        usage       = "${var.TagUsage}"
+        Name        = "NIC-DB1"
+    }
+
+
+}
+
+resource "aws_network_interface" "NIC-DB2" {
+
+    subnet_id = "${aws_subnet.Subnet-BasicLinuxBackEnd2.id}"
+    private_ips = ["172.17.1.138"]
+
+        tags {
+        environment = "${var.TagEnvironment}"
+        usage       = "${var.TagUsage}"
+        Name        = "NIC-DB2"
+    }
+
+
+}
+
 # NIC Creation for Bastion VMs
 
 resource "aws_network_interface" "NIC-Bastion" {
@@ -1083,6 +902,21 @@ resource "aws_network_interface_sg_attachment" "NICFWebFrontEnd2-SGAttachment" {
 
 # NIC Backend SG Association
 
+resource "aws_network_interface_sg_attachment" "NICDBBackEnd1-SGAttachment" {
+
+    
+    security_group_id       = "${aws_security_group.NSG-BackEnd.id}"
+    network_interface_id    = "${aws_network_interface.NIC-DB1.id}"
+
+}
+
+resource "aws_network_interface_sg_attachment" "NICDBBackEnd2-SGAttachment" {
+
+    
+    security_group_id       = "${aws_security_group.NSG-BackEnd.id}"
+    network_interface_id    = "${aws_network_interface.NIC-DB2.id}"
+
+}
 
 # NIC Bastion SG Association
 
@@ -1148,6 +982,42 @@ resource "aws_instance" "Web2" {
 
 # DB BackEnd VMs Creation
 
+resource "aws_instance" "DB1" {
+
+    ami = "${var.AMIId}"
+    instance_type = "${var.VMSize}"
+    key_name = "${aws_key_pair.AWSWebKey.key_name}"
+    network_interface {
+        network_interface_id = "${aws_network_interface.NIC-DB1.id}"
+        device_index = 0
+
+    }
+    user_data = "${file("userdatadb.sh")}"
+     tags {
+        environment = "${var.TagEnvironment}"
+        usage       = "${var.TagUsage}"
+        Name        = "DB1"
+    }
+} 
+
+resource "aws_instance" "DB2" {
+
+    ami = "${var.AMIId}"
+    instance_type = "${var.VMSize}"
+    key_name = "${aws_key_pair.AWSWebKey.key_name}"
+    network_interface {
+        network_interface_id = "${aws_network_interface.NIC-DB2.id}"
+        device_index = 0
+
+    }
+    user_data = "${file("userdatadb.sh")}"
+     tags {
+        environment = "${var.TagEnvironment}"
+        usage       = "${var.TagUsage}"
+        Name        = "DB2"
+    }
+} 
+
 
 # Bastion VM Creation
 
@@ -1168,3 +1038,43 @@ resource "aws_instance" "Bastion" {
         Name        = "Bastion"
     }
 } 
+
+
+
+#####################################################################################
+# Output
+#####################################################################################
+
+
+
+output "Public IP Bastion" {
+  value = "${aws_instance.Bastion.public_ip}"
+}
+
+output "Public IP Web1" {
+  value = "${aws_instance.Web1.public_ip}"
+}
+
+output "Public IP Web2" {
+  value = "${aws_instance.Web2.public_ip}"
+}
+
+output "Private IP  Web1" {
+  value = "${aws_instance.Web1.private_ip}"
+}
+
+output "Private IP  Web2" {
+  value = "${aws_instance.Web2.private_ip}"
+}
+
+output "Private IP  DB1" {
+  value = "${aws_instance.DB1.private_ip}"
+}
+
+output "Private IP  DB2" {
+  value = "${aws_instance.DB2.private_ip}"
+}
+
+output "FQDN du Web Load Balancer" {
+  value = "${aws_alb.BasicLinux-WebALB.dns_name}"
+}
