@@ -155,6 +155,175 @@ resource "aws_subnet" "Subnet-BasicLinuxBastion1" {
 # NACL
 ######################################################################
 
+######################################################################
+# Creating NACL for frontend
+######################################################################
+
+
+resource "aws_network_acl" "NACL-FrontEnd" {
+
+    vpc_id = "${aws_vpc.vpc-basiclinux.id}"
+    subnet_ids = ["${aws_subnet.Subnet-BasicLinuxFrontEnd1.id}","${aws_subnet.Subnet-BasicLinuxFrontEnd2.id}"]
+
+        tags {
+        environment = "${var.TagEnvironment}"
+        usage       = "${var.TagUsage}"
+        Name        = "NACL-FrontEnd"
+    }
+}
+
+######################################################################
+# NACL FrontEnd Rule Section
+######################################################################
+
+# Any In
+
+resource "aws_network_acl_rule" "NACL-FrontEnd-AnyIn" {
+    
+    network_acl_id = "${aws_network_acl.NACL-FrontEnd.id}"
+
+    rule_number = 1098
+    egress = false
+    protocol = "-1"
+    rule_action = "allow"
+    cidr_block = "0.0.0.0/0"
+    from_port = "0"
+    to_port = "0"
+
+
+}
+
+# Any to internet OK
+
+resource "aws_network_acl_rule" "NACL-FrontEnd-AnyOut" {
+    
+    network_acl_id = "${aws_network_acl.NACL-FrontEnd.id}"
+
+    rule_number = 1099
+    egress = true
+    protocol = "-1"
+    rule_action = "allow"
+    cidr_block = "0.0.0.0/0"
+    from_port = "0"
+    to_port = "0"
+  
+
+}
+
+
+
+######################################################################
+# Creating NACL for Backend
+######################################################################
+
+
+resource "aws_network_acl" "NACL-BackEnd" {
+
+    vpc_id = "${aws_vpc.vpc-basiclinux.id}"
+    subnet_ids = ["${aws_subnet.Subnet-BasicLinuxBackEnd1.id}","${aws_subnet.Subnet-BasicLinuxBackEnd2.id}"]
+
+        tags {
+        environment = "${var.TagEnvironment}"
+        usage       = "${var.TagUsage}"
+        Name        = "NACL-BackEnd"
+    }
+}
+
+######################################################################
+# NACL BE Rules Section
+######################################################################
+
+# Any In
+
+resource "aws_network_acl_rule" "NACL-BackEnd-AnyIn" {
+    
+    network_acl_id = "${aws_network_acl.NACL-BackEnd.id}"
+
+    rule_number = 1098
+    egress = false
+    protocol = "-1"
+    rule_action = "allow"
+    cidr_block = "0.0.0.0/0"
+    from_port = "0"
+    to_port = "0"
+  
+
+}
+
+# Any to Internet OK
+
+resource "aws_network_acl_rule" "NACL-BackEnd-AnyOut" {
+    
+    network_acl_id = "${aws_network_acl.NACL-BackEnd.id}"
+
+    rule_number = 1099
+    egress = true
+    protocol = "-1"
+    rule_action = "allow"
+    cidr_block = "0.0.0.0/0"
+    from_port = "0"
+    to_port = "0"
+  
+
+}
+
+
+######################################################################
+# Creating NACL for Bastion
+######################################################################
+
+
+resource "aws_network_acl" "NACL-Bastion" {
+
+    vpc_id = "${aws_vpc.vpc-basiclinux.id}"
+    subnet_ids = ["${aws_subnet.Subnet-BasicLinuxBastion1.id}"]
+
+        tags {
+        environment = "${var.TagEnvironment}"
+        usage       = "${var.TagUsage}"
+        Name        = "NACL-Bastion"
+    }
+}
+
+######################################################################
+# NACL Rules Section for Bastion
+######################################################################
+
+
+
+# Any In
+
+resource "aws_network_acl_rule" "NACL-Bastion-AnyIn" {
+    
+    network_acl_id = "${aws_network_acl.NACL-Bastion.id}"
+
+    rule_number = 1098
+    egress = false
+    protocol = "-1"
+    rule_action = "allow"
+    cidr_block = "0.0.0.0/0"
+    from_port = "0"
+    to_port = "0"
+  
+
+}
+
+
+resource "aws_network_acl_rule" "NACL-Bastion-AnyOut" {
+    
+    network_acl_id = "${aws_network_acl.NACL-Bastion.id}"
+
+    rule_number = 1099
+    egress = true
+    protocol = "-1"
+    rule_action = "allow"
+    cidr_block = "0.0.0.0/0"
+    from_port = "0"
+    to_port = "0"
+  
+
+}
+
 
 ######################################################################
 # Security Group

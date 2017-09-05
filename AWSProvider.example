@@ -1,0 +1,19 @@
+#################################################################
+# Example file for AWS Registration
+# Do not add this file to GIT once completed
+#################################################################
+variable "AWSAccessKey" {
+  type    = "string"
+  default = ""
+}
+
+variable "AWSSecretKey" {
+  type    = "string"
+  default = ""
+}
+
+variable "AWSKeypair" {
+  type = "string"
+  default = "ssh-rsa "
+}
+

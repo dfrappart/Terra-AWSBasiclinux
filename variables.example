@@ -1,0 +1,70 @@
+######################################################
+# Variables for Template
+######################################################
+
+# Variables to define the AWS Region
+
+variable "AWSRegion" {
+
+    type    = "string"
+    default = ""
+}
+
+variable "AWSAZ1" {
+
+  type    = "string"
+  default = "eu-west-1a"
+}
+
+
+variable "AWSAZ2" {
+
+  type    = "string"
+  default = ""
+}
+
+variable "AWSAZ3" {
+
+  type    = "string"
+  default = ""
+}
+# Variable to define the Tag
+
+variable "TagEnvironment" {
+
+    type    = "string"
+    default = ""
+}
+
+variable "TagUsage" {
+
+    type    = "string"
+    default = ""
+}
+
+
+
+
+# Variables for AMI selection and size
+
+variable "AMIId" {
+  type    = "string"
+  #default = "ami-f97e8f80" #Windows 2016 With Desktop Exp
+  #default = "ami-061b1560" #Centos 7.x
+  default = "ami-785db401" #Ubuntu 16.04 LTS 
+}
+
+#variable defining VM size
+variable "VMSize" {
+  type    = "string"
+  default = "t2.micro" #1 vCPU 1 Go RAM
+  #default = "t2.small" #1 vCPU 2 Go RAM
+  #default = "t2.medium" #2 vCPU 4Go RAM
+  #default = "t2.large" #2 vCPU 8 Go RAM
+  #default = "t2.xlarge" #4 vCPU 16 Go RAM
+  #default = "t2.2xlarge" #8 vCPU 32 Go RAM
+  #default = "m4.large" #2 vCPU 8Go RAM
+  #default = "m4.xlarge" #4 vCPU 16 Go RAM
+  #default = "m4.2xlarge" #8 vCPU 32 Go RAM
+
+}
