@@ -1110,8 +1110,8 @@ resource "aws_key_pair" "AWSWebKey" {
 
 resource "aws_instance" "Web1" {
 
-    ami = "${var.AMIId}"
-    instance_type = "${var.VMSize}"
+    ami = "${lookup(var.AMIId, 0)}"
+    instance_type = "${lookup(var.VMSize, 0)}"
     key_name = "${aws_key_pair.BasicLinuxSSHKey.key_name}"
     network_interface {
         network_interface_id = "${aws_network_interface.NIC-Web1.id}"
@@ -1128,8 +1128,8 @@ resource "aws_instance" "Web1" {
 
 resource "aws_instance" "Web2" {
 
-    ami = "${var.AMIId}"
-    instance_type = "${var.VMSize}"
+    ami = "${lookup(var.AMIId, 0)}"
+    instance_type = "${lookup(var.VMSize, 0)}"
     key_name = "${aws_key_pair.BasicLinuxSSHKey.key_name}"
     network_interface {
         network_interface_id = "${aws_network_interface.NIC-Web2.id}"
@@ -1149,8 +1149,8 @@ resource "aws_instance" "Web2" {
 
 resource "aws_instance" "DB1" {
 
-    ami = "${var.AMIId}"
-    instance_type = "${var.VMSize}"
+    ami = "${lookup(var.AMIId, 0)}"
+    instance_type = "${lookup(var.VMSize, 0)}"
     key_name = "${aws_key_pair.BasicLinuxSSHKey.key_name}"
     network_interface {
         network_interface_id = "${aws_network_interface.NIC-DB1.id}"
@@ -1167,8 +1167,8 @@ resource "aws_instance" "DB1" {
 
 resource "aws_instance" "DB2" {
 
-    ami = "${var.AMIId}"
-    instance_type = "${var.VMSize}"
+    ami = "${lookup(var.AMIId, 0)}"
+    instance_type = "${lookup(var.VMSize, 0)}"
     key_name = "${aws_key_pair.BasicLinuxSSHKey.key_name}"
     network_interface {
         network_interface_id = "${aws_network_interface.NIC-DB2.id}"
@@ -1188,8 +1188,8 @@ resource "aws_instance" "DB2" {
 
 resource "aws_instance" "Bastion" {
 
-    ami = "${var.AMIId}"
-    instance_type = "${var.VMSize}"
+    ami = "${lookup(var.AMIId, 0)}"
+    instance_type = "${lookup(var.VMSize, 0)}"
     key_name = "${aws_key_pair.BasicLinuxSSHKey.key_name}"
     network_interface {
         network_interface_id = "${aws_network_interface.NIC-Bastion.id}"
