@@ -40,7 +40,7 @@ provider "aws" {
 
     access_key  = "${var.AWSAccessKey}"
     secret_key  = "${var.AWSSecretKey}"
-    region      = "${var.AWSRegion}"
+    region      = "${lookup(var.AWSRegion, 5)}"
     
 }
 
@@ -48,9 +48,9 @@ provider "aws" {
 # AWS Key pair
 ######################################################################
 
-resource "aws_key_pair" "Terra-AWSKey" {
+resource "aws_key_pair" "BasicLinuxSSHKey" {
 
-    key_name = "Terra-AWSKey"
+    key_name = "BasicLinuxSSHKey"
     public_key = "${var.AWSKeypair}"
 }
 
@@ -63,7 +63,7 @@ resource "aws_key_pair" "Terra-AWSKey" {
 
 resource "aws_vpc" "vpc-basiclinux" {
 
-    cidr_block = "172.17.0.0/16"
+    cidr_block = "${var.VPCIPRange}"
 
      tags {
         environment = "${var.TagEnvironment}"
@@ -84,14 +84,14 @@ resource "aws_subnet" "Subnet-BasicLinuxFrontEnd1" {
 
     
     vpc_id      = "${aws_vpc.vpc-basiclinux.id}"
-    cidr_block  = "172.17.0.0/25"
-    availability_zone = "${var.AWSAZ1}"
+    cidr_block  = "${lookup(var.SubnetAddressRange, 0)}"
+    availability_zone = "${lookup(var.AWSAZ, 14)}"
     #map_public_ip_on_launch = true
 
     tags {
         environment = "${var.TagEnvironment}"
         usage       = "${var.TagUsage}"
-        Name        = "Subnet-BasicLinuxFrontEnd1"
+        Name        = "${lookup(var.SubnetName, 0)}"
     } 
 }
 
@@ -101,14 +101,14 @@ resource "aws_subnet" "Subnet-BasicLinuxFrontEnd1" {
 resource "aws_subnet" "Subnet-BasicLinuxFrontEnd2" {
 
     vpc_id      = "${aws_vpc.vpc-basiclinux.id}"
-    cidr_block  = "172.17.0.128/25"
-    availability_zone = "${var.AWSAZ2}"
+    cidr_block  = "${lookup(var.SubnetAddressRange, 1)}"
+    availability_zone = "${lookup(var.AWSAZ, 15)}"
     #map_public_ip_on_launch = true
 
     tags {
         environment = "${var.TagEnvironment}"
         usage       = "${var.TagUsage}"
-        Name        = "Subnet-BasicLinuxFrontEnd2"
+        Name        = "${lookup(var.SubnetName, 2)}"
     } 
 }
 
@@ -118,13 +118,14 @@ resource "aws_subnet" "Subnet-BasicLinuxFrontEnd2" {
 resource "aws_subnet" "Subnet-BasicLinuxBackEnd1" {
 
     vpc_id      = "${aws_vpc.vpc-basiclinux.id}"
-    cidr_block  = "172.17.1.0/25"
-    availability_zone = "${var.AWSAZ1}"
+    cidr_block  = "${lookup(var.SubnetAddressRange, 3)}"
+    availability_zone = "${lookup(var.AWSAZ, 14)}"
+    #map_public_ip_on_launch = true
 
     tags {
         environment = "${var.TagEnvironment}"
         usage       = "${var.TagUsage}"
-        Name        = "Subnet-BasicLinuxBackEnd1"
+        Name        = "${lookup(var.SubnetName, 3)}"
     } 
 }
 
@@ -134,13 +135,14 @@ resource "aws_subnet" "Subnet-BasicLinuxBackEnd1" {
 resource "aws_subnet" "Subnet-BasicLinuxBackEnd2" {
 
     vpc_id      = "${aws_vpc.vpc-basiclinux.id}"
-    cidr_block  = "172.17.1.128/25"
-    availability_zone = "${var.AWSAZ2}"
+    cidr_block  = "${lookup(var.SubnetAddressRange, 4)}"
+    availability_zone = "${lookup(var.AWSAZ, 15)}"
+    #map_public_ip_on_launch = true
 
     tags {
         environment = "${var.TagEnvironment}"
         usage       = "${var.TagUsage}"
-        Name        = "Subnet-BasicLinuxBackEnd2"
+        Name        = "${lookup(var.SubnetName, 4)}"
     } 
 }
 
@@ -149,13 +151,14 @@ resource "aws_subnet" "Subnet-BasicLinuxBackEnd2" {
 resource "aws_subnet" "Subnet-BasicLinuxBastion1" {
 
     vpc_id      = "${aws_vpc.vpc-basiclinux.id}"
-    cidr_block  = "172.17.2.0/25"
-    availability_zone = "${var.AWSAZ3}"
+    cidr_block  = "${lookup(var.SubnetAddressRange, 4)}"
+    availability_zone = "${lookup(var.AWSAZ, 14)}"
+    #map_public_ip_on_launch = true
 
     tags {
         environment = "${var.TagEnvironment}"
         usage       = "${var.TagUsage}"
-        Name        = "Subnet-BasicLinuxBastion1"
+        Name        = "${lookup(var.SubnetName, 4)}"
     } 
 }
 
@@ -434,7 +437,7 @@ resource "aws_security_group_rule" "NSG-FrontEnd-HTTPInFromFE1" {
     from_port = 80
     to_port = 80
     protocol = "tcp"
-    cidr_blocks = ["172.17.0.0/25"]
+    cidr_blocks = ["${lookup(var.SubnetAddressRange, 0)}"]
     security_group_id = "${aws_security_group.NSG-FrontEnd.id}"
     
 
@@ -446,7 +449,7 @@ resource "aws_security_group_rule" "NSG-FrontEnd-HTTPInFromFE2" {
     from_port = 80
     to_port = 80
     protocol = "tcp"
-    cidr_blocks = ["172.17.0.128/25"]
+    cidr_blocks = ["${lookup(var.SubnetAddressRange, 1)}"]
     security_group_id = "${aws_security_group.NSG-FrontEnd.id}"
     
 
@@ -472,7 +475,7 @@ resource "aws_security_group_rule" "NSG-FrontEnd-SSHIn" {
     from_port = 22
     to_port = 22
     protocol = "tcp"
-    cidr_blocks = ["172.17.2.0/25"]
+    cidr_blocks = ["${lookup(var.SubnetAddressRange, 4)}"]
     security_group_id = "${aws_security_group.NSG-FrontEnd.id}"
     
 
@@ -521,7 +524,7 @@ resource "aws_security_group_rule" "NSG-BackEnd-MySQLInFromFE1" {
     from_port = 3306
     to_port = 3306
     protocol = "tcp"
-    cidr_blocks = ["172.17.0.0/25"]
+    cidr_blocks = ["${lookup(var.SubnetAddressRange, 0)}"]
     security_group_id = "${aws_security_group.NSG-BackEnd.id}"
     
 
@@ -533,7 +536,7 @@ resource "aws_security_group_rule" "NSG-BackEnd-MySQLInFromFE2" {
     from_port = 3306
     to_port = 3306
     protocol = "tcp"
-    cidr_blocks = ["172.17.0.128/25"]
+    cidr_blocks = ["${lookup(var.SubnetAddressRange, 1)}"]
     security_group_id = "${aws_security_group.NSG-BackEnd.id}"
     
 
@@ -546,7 +549,7 @@ resource "aws_security_group_rule" "NSG-BackEnd-SSHIn" {
     from_port = 22
     to_port = 22
     protocol = "tcp"
-    cidr_blocks = ["172.17.2.0/25"]
+    cidr_blocks = ["${lookup(var.SubnetAddressRange, 4)}"]
     security_group_id = "${aws_security_group.NSG-BackEnd.id}"
     
 
@@ -602,21 +605,6 @@ resource "aws_security_group_rule" "NSG-Bastion-SSHIn" {
     
 
 }
-
-#Rules for SG Bastion HTTP In
-
-resource "aws_security_group_rule" "NSG-Bastion-HTTPIn" {
-
-    type = "ingress"
-    from_port = 80
-    to_port = 80
-    protocol = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-    security_group_id = "${aws_security_group.NSG-Bastion.id}"
-    
-
-}
-
 
 
 #Rule for SG Bastion * outbound
@@ -785,7 +773,7 @@ resource "aws_nat_gateway" "BasicLinuxnatgw" {
 resource "aws_s3_bucket" "basiclinuxalblogstorage" {
 
     bucket = "dfrelblogs"
-    /*policy = <<EOF
+    policy = <<EOF
     {
 
         "Version":"2012-10-17",
@@ -800,8 +788,8 @@ resource "aws_s3_bucket" "basiclinuxalblogstorage" {
             }
         ]
     }
-    EOF
-    */
+EOF
+    
         tags {
         environment = "${var.TagEnvironment}"
         usage       = "${var.TagUsage}"
@@ -810,7 +798,7 @@ resource "aws_s3_bucket" "basiclinuxalblogstorage" {
     
 }
 
-# Creating ALB Classic for front end http / https
+# Creating ALB for front end http / https
 
 resource "aws_alb" "BasicLinux-WebALB" {
 
@@ -821,13 +809,13 @@ resource "aws_alb" "BasicLinux-WebALB" {
     idle_timeout        = 60
     depends_on          = ["aws_s3_bucket.basiclinuxalblogstorage","aws_instance.Web1","aws_instance.Web2"]
     
-    /*    access_logs {
+        access_logs {
 
         bucket          = "dfrelblogs"
         bucket_prefix   = "log"
         interval        = 60
     }
-    */
+    
 
 
     tags {
@@ -1124,7 +1112,7 @@ resource "aws_instance" "Web1" {
 
     ami = "${var.AMIId}"
     instance_type = "${var.VMSize}"
-    key_name = "${aws_key_pair.Terra-AWSKey.key_name}"
+    key_name = "${aws_key_pair.BasicLinuxSSHKey.key_name}"
     network_interface {
         network_interface_id = "${aws_network_interface.NIC-Web1.id}"
         device_index = 0
@@ -1142,7 +1130,7 @@ resource "aws_instance" "Web2" {
 
     ami = "${var.AMIId}"
     instance_type = "${var.VMSize}"
-    key_name = "${aws_key_pair.Terra-AWSKey.key_name}"
+    key_name = "${aws_key_pair.BasicLinuxSSHKey.key_name}"
     network_interface {
         network_interface_id = "${aws_network_interface.NIC-Web2.id}"
         device_index = 0
@@ -1163,7 +1151,7 @@ resource "aws_instance" "DB1" {
 
     ami = "${var.AMIId}"
     instance_type = "${var.VMSize}"
-    key_name = "${aws_key_pair.Terra-AWSKey.key_name}"
+    key_name = "${aws_key_pair.BasicLinuxSSHKey.key_name}"
     network_interface {
         network_interface_id = "${aws_network_interface.NIC-DB1.id}"
         device_index = 0
@@ -1181,7 +1169,7 @@ resource "aws_instance" "DB2" {
 
     ami = "${var.AMIId}"
     instance_type = "${var.VMSize}"
-    key_name = "${aws_key_pair.Terra-AWSKey.key_name}"
+    key_name = "${aws_key_pair.BasicLinuxSSHKey.key_name}"
     network_interface {
         network_interface_id = "${aws_network_interface.NIC-DB2.id}"
         device_index = 0
@@ -1202,7 +1190,7 @@ resource "aws_instance" "Bastion" {
 
     ami = "${var.AMIId}"
     instance_type = "${var.VMSize}"
-    key_name = "${aws_key_pair.Terra-AWSKey.key_name}"
+    key_name = "${aws_key_pair.BasicLinuxSSHKey.key_name}"
     network_interface {
         network_interface_id = "${aws_network_interface.NIC-Bastion.id}"
         device_index = 0
