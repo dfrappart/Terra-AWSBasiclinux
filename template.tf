@@ -1116,7 +1116,7 @@ resource "aws_instance" "Web1" {
 
     ami = "${var.AMIId}"
     instance_type = "${var.VMSize}"
-    key_name = "${aws_key_pair.AWSWebKey.key_name}"
+    key_name = "${var.AWSKeypair}"
     network_interface {
         network_interface_id = "${aws_network_interface.NIC-Web1.id}"
         device_index = 0
@@ -1134,7 +1134,7 @@ resource "aws_instance" "Web2" {
 
     ami = "${var.AMIId}"
     instance_type = "${var.VMSize}"
-    key_name = "${aws_key_pair.AWSWebKey.key_name}"
+    key_name = "${var.AWSKeypair}"
     network_interface {
         network_interface_id = "${aws_network_interface.NIC-Web2.id}"
         device_index = 0
@@ -1155,7 +1155,7 @@ resource "aws_instance" "DB1" {
 
     ami = "${var.AMIId}"
     instance_type = "${var.VMSize}"
-    key_name = "${aws_key_pair.AWSWebKey.key_name}"
+    key_name = "${var.AWSKeypair}"
     network_interface {
         network_interface_id = "${aws_network_interface.NIC-DB1.id}"
         device_index = 0
@@ -1173,7 +1173,7 @@ resource "aws_instance" "DB2" {
 
     ami = "${var.AMIId}"
     instance_type = "${var.VMSize}"
-    key_name = "${aws_key_pair.AWSWebKey.key_name}"
+    key_name = "${var.AWSKeypair}"
     network_interface {
         network_interface_id = "${aws_network_interface.NIC-DB2.id}"
         device_index = 0
@@ -1194,7 +1194,7 @@ resource "aws_instance" "Bastion" {
 
     ami = "${var.AMIId}"
     instance_type = "${var.VMSize}"
-    key_name = "${aws_key_pair.AWSWebKey.key_name}"
+    key_name = "${var.AWSKeypair}"
     network_interface {
         network_interface_id = "${aws_network_interface.NIC-Bastion.id}"
         device_index = 0
