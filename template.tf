@@ -774,6 +774,8 @@ resource "random_string" "bucketprefix" {
     number = false
 }
 
+
+
 resource "aws_s3_bucket" "basiclinuxalblogstorage" {
 
     bucket = "${random_string.bucketprefix.result}basiclinuxlblogs"
@@ -802,9 +804,19 @@ resource "aws_s3_bucket" "basiclinuxalblogstorage" {
 
 # Creating ALB for front end http / https
 
+resource "random_string" "webalb" {
+
+
+
+    length = 5
+    special = false
+    upper = false
+    number = false
+}
+
 resource "aws_alb" "BasicLinux-WebALB" {
 
-    name                = "BasicLinux-WebALB"
+    name                = "${random_string.webalb.result}basicLinux-webalb"
     internal            = false
     subnets             = ["${aws_subnet.Subnet-BasicLinuxFrontEnd1.id}","${aws_subnet.Subnet-BasicLinuxFrontEnd2.id}"]
     security_groups     = ["${aws_security_group.NSG-ALB.id}"]
