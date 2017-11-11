@@ -716,7 +716,7 @@ resource "aws_eip" "BasicLinuxBastion-EIP" {
 
 }
 
-/*
+
 # Creating Public IP for Web1
 
 resource "aws_eip" "BasicLinuxWeb1-EIP" {
@@ -737,7 +737,7 @@ resource "aws_eip" "BasicLinuxWeb2-EIP" {
 
 }
 
-*/
+
 
 # Creating Public IP for Nat Gateway
 
