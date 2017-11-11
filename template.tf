@@ -40,7 +40,7 @@ provider "aws" {
 
     access_key  = "${var.AWSAccessKey}"
     secret_key  = "${var.AWSSecretKey}"
-    region      = "${lookup(var.AWSRegion, 5)}"
+    region      = "${lookup(var.AWSRegion, 0)}"
     
 }
 
@@ -85,7 +85,7 @@ resource "aws_subnet" "Subnet-BasicLinuxFrontEnd1" {
     
     vpc_id      = "${aws_vpc.vpc-basiclinux.id}"
     cidr_block  = "${lookup(var.SubnetAddressRange, 0)}"
-    availability_zone = "${lookup(var.AWSAZ, 14)}"
+    availability_zone = "${lookup(var.AWSAZ, 0)}"
     #map_public_ip_on_launch = true
 
     tags {
@@ -102,7 +102,7 @@ resource "aws_subnet" "Subnet-BasicLinuxFrontEnd2" {
 
     vpc_id      = "${aws_vpc.vpc-basiclinux.id}"
     cidr_block  = "${lookup(var.SubnetAddressRange, 1)}"
-    availability_zone = "${lookup(var.AWSAZ, 15)}"
+    availability_zone = "${lookup(var.AWSAZ, 1)}"
     #map_public_ip_on_launch = true
 
     tags {
@@ -118,14 +118,14 @@ resource "aws_subnet" "Subnet-BasicLinuxFrontEnd2" {
 resource "aws_subnet" "Subnet-BasicLinuxBackEnd1" {
 
     vpc_id      = "${aws_vpc.vpc-basiclinux.id}"
-    cidr_block  = "${lookup(var.SubnetAddressRange, 3)}"
-    availability_zone = "${lookup(var.AWSAZ, 14)}"
+    cidr_block  = "${lookup(var.SubnetAddressRange, 2)}"
+    availability_zone = "${lookup(var.AWSAZ, 0)}"
     #map_public_ip_on_launch = true
 
     tags {
         environment = "${var.TagEnvironment}"
         usage       = "${var.TagUsage}"
-        Name        = "${lookup(var.SubnetName, 3)}"
+        Name        = "${lookup(var.SubnetName, 2)}"
     } 
 }
 
@@ -135,14 +135,14 @@ resource "aws_subnet" "Subnet-BasicLinuxBackEnd1" {
 resource "aws_subnet" "Subnet-BasicLinuxBackEnd2" {
 
     vpc_id      = "${aws_vpc.vpc-basiclinux.id}"
-    cidr_block  = "${lookup(var.SubnetAddressRange, 4)}"
-    availability_zone = "${lookup(var.AWSAZ, 15)}"
+    cidr_block  = "${lookup(var.SubnetAddressRange, 3)}"
+    availability_zone = "${lookup(var.AWSAZ, 1)}"
     #map_public_ip_on_launch = true
 
     tags {
         environment = "${var.TagEnvironment}"
         usage       = "${var.TagUsage}"
-        Name        = "${lookup(var.SubnetName, 4)}"
+        Name        = "${lookup(var.SubnetName, 3)}"
     } 
 }
 
@@ -152,7 +152,7 @@ resource "aws_subnet" "Subnet-BasicLinuxBastion1" {
 
     vpc_id      = "${aws_vpc.vpc-basiclinux.id}"
     cidr_block  = "${lookup(var.SubnetAddressRange, 4)}"
-    availability_zone = "${lookup(var.AWSAZ, 14)}"
+    availability_zone = "${lookup(var.AWSAZ, 2)}"
     #map_public_ip_on_launch = true
 
     tags {
@@ -392,7 +392,7 @@ resource "aws_security_group_rule" "NSG-ALB-HTTPSIn" {
 
 }
 
-#Rule for SG Front End * outbound
+#Rule for SG ALB * outbound
 
 resource "aws_security_group_rule" "NSG-ALB-AnyOut" {
 
@@ -406,6 +406,20 @@ resource "aws_security_group_rule" "NSG-ALB-AnyOut" {
 
 }
 
+#Rule for SG ALB 80 to FE outbound
+
+resource "aws_security_group_rule" "NSG-ALB-HTTPToFE2" {
+
+    type = "egress"
+    from_port = 80
+    to_port = 80
+    protocol = "tcp"
+    #cidr_blocks = ["${lookup(var.SubnetAddressRange, 1)}"]
+    source_security_group_id = "${aws_security_group.NSG-FrontEnd.id}"
+    security_group_id = "${aws_security_group.NSG-ALB.id}"
+    
+
+}
 
 
 ######################################################################
@@ -431,41 +445,18 @@ resource "aws_security_group" "NSG-FrontEnd" {
 
 #Rules for SG Front End HTTP In
 
-resource "aws_security_group_rule" "NSG-FrontEnd-HTTPInFromFE1" {
+resource "aws_security_group_rule" "NSG-FrontEnd-HTTPInFromALB" {
 
     type = "ingress"
     from_port = 80
     to_port = 80
     protocol = "tcp"
-    cidr_blocks = ["${lookup(var.SubnetAddressRange, 0)}"]
+    #cidr_blocks = ["${lookup(var.SubnetAddressRange, 0)}"]
+    source_security_group_id = "${aws_security_group.NSG-ALB.id}"
     security_group_id = "${aws_security_group.NSG-FrontEnd.id}"
     
 
 }
-
-resource "aws_security_group_rule" "NSG-FrontEnd-HTTPInFromFE2" {
-
-    type = "ingress"
-    from_port = 80
-    to_port = 80
-    protocol = "tcp"
-    cidr_blocks = ["${lookup(var.SubnetAddressRange, 1)}"]
-    security_group_id = "${aws_security_group.NSG-FrontEnd.id}"
-    
-
-}
-
-#resource "aws_security_group_rule" "NSG-FrontEnd-HTTPInFromWebInstance" {
-#
-#    type = "ingress"
-#    from_port = 80
-#    to_port = 80
-#    protocol = "tcp"
-#    cidr_blocks = ["${aws_instance.Web1.private_ip}/32","${aws_instance.Web2.private_ip}/32"]
-#    security_group_id = "${aws_security_group.NSG-FrontEnd.id}"
-#    
-#
-#}
 
 # Rule for SG Front End SSH in from Bastion
 
@@ -496,7 +487,7 @@ resource "aws_security_group_rule" "NSG-FrontEnd-AnyOut" {
 }
 
 ######################################################################
-#Security Group for FE
+#Security Group for BE
 ######################################################################
 
 resource "aws_security_group" "NSG-BackEnd" {
@@ -513,7 +504,7 @@ resource "aws_security_group" "NSG-BackEnd" {
 }
 
 ######################################################################
-#Security Group Rules section for FE
+#Security Group Rules section for BE
 ######################################################################
 
 #Rules for SG Front End HTTP In
@@ -725,6 +716,7 @@ resource "aws_eip" "BasicLinuxBastion-EIP" {
 
 }
 
+/*
 # Creating Public IP for Web1
 
 resource "aws_eip" "BasicLinuxWeb1-EIP" {
@@ -744,6 +736,8 @@ resource "aws_eip" "BasicLinuxWeb2-EIP" {
 
 
 }
+
+*/
 
 # Creating Public IP for Nat Gateway
 
@@ -770,26 +764,34 @@ resource "aws_nat_gateway" "BasicLinuxnatgw" {
 
 # Creating S3 bucket for logs
 
+resource "random_string" "bucketprefix" {
+
+
+
+    length = 5
+    special = false
+    upper = false
+    number = false
+}
+
 resource "aws_s3_bucket" "basiclinuxalblogstorage" {
 
-    bucket = "dfrelblogs"
-    policy = <<EOF
+    bucket = "${random_string.bucketprefix.result}basiclinuxlblogs"
+    /*policy = <<EOF
     {
-
-        "Version":"2012-10-17",
-        "Statement": [
+        "Version" = "2012-10-17",
+        "Statement":[
             {
-                "Effect": "Allow",
-                "Principal": {
-                    "AWS": "arn:aws:iam::156460612806:root"
+                "Effect":"Allow",
+                "Principal":{
+                    "AWS":"arn:aws:iam::156460612806:root"
                 },
-            "Action": "s3:PutObject",
-            "Resource": "arn:aws:s3:::dfrelblogs/*"
+                "Action":"s3:PutObject",
+                "Resource":"arn:s3:::"
             }
         ]
     }
-EOF
-    
+*/    
         tags {
         environment = "${var.TagEnvironment}"
         usage       = "${var.TagUsage}"
@@ -808,14 +810,14 @@ resource "aws_alb" "BasicLinux-WebALB" {
     security_groups     = ["${aws_security_group.NSG-ALB.id}"]
     idle_timeout        = 60
     depends_on          = ["aws_s3_bucket.basiclinuxalblogstorage","aws_instance.Web1","aws_instance.Web2"]
-    
+ /*   
         access_logs {
 
-        bucket          = "dfrelblogs"
-        bucket_prefix   = "log"
-        interval        = 60
+        bucket   = "${aws_s3_bucket.basiclinuxalblogstorage.bucket}"
+        prefix   = "log"
+        enabled  = true
     }
-    
+*/    
 
 
     tags {
@@ -903,7 +905,7 @@ resource "aws_volume_attachment" "ebsweb1attach" {
 }
 
 resource "aws_ebs_volume" "ebsvol-web1" {
-    availability_zone   = "${var.AWSAZ1}"
+    availability_zone   = "${lookup(var.AWSAZ, 0)}"
     size                = 31
 }
 
@@ -916,7 +918,7 @@ resource "aws_volume_attachment" "ebsweb2attach" {
 }
 
 resource "aws_ebs_volume" "ebsvol-web2" {
-    availability_zone   = "${var.AWSAZ2}"
+    availability_zone   = "${lookup(var.AWSAZ, 1)}"
     size                = 31
 }
 
@@ -930,7 +932,7 @@ resource "aws_volume_attachment" "ebsDB1attach" {
 }
 
 resource "aws_ebs_volume" "ebsvol-DB1" {
-    availability_zone   = "${var.AWSAZ1}"
+    availability_zone   = "${lookup(var.AWSAZ, 0)}"
     size                = 31
 }
 
@@ -943,7 +945,7 @@ resource "aws_volume_attachment" "ebsDB2attach" {
 }
 
 resource "aws_ebs_volume" "ebsvol-DB2" {
-    availability_zone   = "${var.AWSAZ2}"
+    availability_zone   = "${lookup(var.AWSAZ, 1)}"
     size                = 31
 }
 
@@ -957,7 +959,7 @@ resource "aws_volume_attachment" "ebsbastionattach" {
 }
 
 resource "aws_ebs_volume" "ebsvol-bastion" {
-    availability_zone   = "${var.AWSAZ3}"
+    availability_zone   = "${lookup(var.AWSAZ, 2)}"
     size                = 31
 }
 
@@ -971,7 +973,7 @@ resource "aws_ebs_volume" "ebsvol-bastion" {
 resource aws_network_interface "NIC-Web1" {
 
     subnet_id = "${aws_subnet.Subnet-BasicLinuxFrontEnd1.id}"
-    private_ips = ["172.17.0.10"]
+    #private_ips = ["172.17.0.10"]
 
         tags {
         environment = "${var.TagEnvironment}"
@@ -985,7 +987,7 @@ resource aws_network_interface "NIC-Web1" {
 resource "aws_network_interface" "NIC-Web2" {
 
     subnet_id = "${aws_subnet.Subnet-BasicLinuxFrontEnd2.id}"
-    private_ips = ["172.17.0.138"]
+    #private_ips = ["172.17.0.138"]
 
         tags {
         environment = "${var.TagEnvironment}"
@@ -1001,7 +1003,7 @@ resource "aws_network_interface" "NIC-Web2" {
 resource aws_network_interface "NIC-DB1" {
 
     subnet_id = "${aws_subnet.Subnet-BasicLinuxBackEnd1.id}"
-    private_ips = ["172.17.1.10"]
+    #private_ips = ["172.17.1.10"]
 
         tags {
         environment = "${var.TagEnvironment}"
@@ -1015,7 +1017,7 @@ resource aws_network_interface "NIC-DB1" {
 resource "aws_network_interface" "NIC-DB2" {
 
     subnet_id = "${aws_subnet.Subnet-BasicLinuxBackEnd2.id}"
-    private_ips = ["172.17.1.138"]
+    #private_ips = ["172.17.1.138"]
 
         tags {
         environment = "${var.TagEnvironment}"
@@ -1031,7 +1033,7 @@ resource "aws_network_interface" "NIC-DB2" {
 resource "aws_network_interface" "NIC-Bastion" {
 
     subnet_id = "${aws_subnet.Subnet-BasicLinuxBastion1.id}"
-    private_ips = ["172.17.2.10"]
+    #private_ips = ["172.17.2.10"]
 
         tags {
         environment = "${var.TagEnvironment}"
