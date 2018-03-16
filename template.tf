@@ -651,21 +651,6 @@ resource "random_string" "bucketprefix" {
 resource "aws_s3_bucket" "basiclinuxalblogstorage" {
   bucket = "${random_string.bucketprefix.result}basiclinuxlblogs"
 
-  /*policy = <<EOF
-      {
-          "Version" = "2012-10-17",
-          "Statement":[
-              {
-                  "Effect":"Allow",
-                  "Principal":{
-                      "AWS":"arn:aws:iam::156460612806:root"
-                  },
-                  "Action":"s3:PutObject",
-                  "Resource":"arn:s3:::"
-              }
-          ]
-      }
-  */
   tags {
     environment = "${var.TagEnvironment}"
     usage       = "${var.TagUsage}"
@@ -673,6 +658,28 @@ resource "aws_s3_bucket" "basiclinuxalblogstorage" {
   }
 }
 
+/*
+resource "aws_s3_bucket_policy" "basiclinuxlogstoragepolicy" {
+  bucket = "${aws_s3_bucket.basiclinuxalblogstorage.id}"
+
+  policy = <<POLICY
+{
+            "Version": "2012-10-17",
+            "Id": "MYBUCKETPOLICYTEST",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Principal": {
+                        "AWS": "arn:aws:iam::156460612806:root"
+                    },
+                    "Action": "s3:PutObject",
+                    "Resource":"arn:s3:::"
+                }
+            ]
+}
+POLICY
+}
+*/
 # Creating ALB for front end http / https
 
 resource "random_string" "webalb" {
