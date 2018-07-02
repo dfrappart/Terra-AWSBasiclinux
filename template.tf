@@ -783,6 +783,12 @@ resource "aws_volume_attachment" "ebsweb1attach" {
 resource "aws_ebs_volume" "ebsvol-web1" {
   availability_zone = "${lookup(var.AWSAZ, 0)}"
   size              = 31
+
+  tags {
+    environment = "${var.TagEnvironment}"
+    usage       = "${var.TagUsage}"
+    Name        = "EBS_Web1"
+  }
 }
 
 resource "aws_volume_attachment" "ebsweb2attach" {
@@ -794,6 +800,12 @@ resource "aws_volume_attachment" "ebsweb2attach" {
 resource "aws_ebs_volume" "ebsvol-web2" {
   availability_zone = "${lookup(var.AWSAZ, 1)}"
   size              = 31
+
+  tags {
+    environment = "${var.TagEnvironment}"
+    usage       = "${var.TagUsage}"
+    Name        = "EBS_Web2"
+  }
 }
 
 # EBS for DB Backend VMs
@@ -807,6 +819,12 @@ resource "aws_volume_attachment" "ebsDB1attach" {
 resource "aws_ebs_volume" "ebsvol-DB1" {
   availability_zone = "${lookup(var.AWSAZ, 0)}"
   size              = 31
+
+  tags {
+    environment = "${var.TagEnvironment}"
+    usage       = "${var.TagUsage}"
+    Name        = "EBS_DB1"
+  }
 }
 
 resource "aws_volume_attachment" "ebsDB2attach" {
@@ -818,6 +836,12 @@ resource "aws_volume_attachment" "ebsDB2attach" {
 resource "aws_ebs_volume" "ebsvol-DB2" {
   availability_zone = "${lookup(var.AWSAZ, 1)}"
   size              = 31
+
+  tags {
+    environment = "${var.TagEnvironment}"
+    usage       = "${var.TagUsage}"
+    Name        = "EBS_DB2"
+  }
 }
 
 # EBS for Bastion VM
@@ -831,6 +855,12 @@ resource "aws_volume_attachment" "ebsbastionattach" {
 resource "aws_ebs_volume" "ebsvol-bastion" {
   availability_zone = "${lookup(var.AWSAZ, 2)}"
   size              = 31
+
+  tags {
+    environment = "${var.TagEnvironment}"
+    usage       = "${var.TagUsage}"
+    Name        = "EBS_Bastion1"
+  }
 }
 
 ###########################################################################
